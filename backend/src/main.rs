@@ -2,10 +2,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    tauri::Builder::default()
+    if let Err(e) = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+    {
+        eprintln!("error while running tauri application: {e}");
+        std::process::exit(1);
+    }
 }
 
 #[cfg(test)]
