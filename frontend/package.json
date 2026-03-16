@@ -12,7 +12,7 @@
     "format": "conc -m 1 bun:format:eslint bun:format:prettier",
     "test": "conc bun:test:type bun:test:unit",
     "test:type": "tsc --noEmit",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
