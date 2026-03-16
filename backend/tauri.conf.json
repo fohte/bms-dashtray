@@ -15,6 +15,7 @@
     "frontendDist": "../frontend/dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
     },
@@ -38,7 +39,5 @@
       "icons/icon.ico"
     ]
   },
-  "plugins": {
-    "dialog": {}
-  }
+  "plugins": {}
 }
