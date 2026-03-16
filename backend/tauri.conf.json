@@ -1,0 +1,44 @@
+{
+  "productName": "bms-dashtray",
+  "version": "0.1.0",
+  "identifier": "com.fohte.bms-dashtray",
+  "build": {
+    "beforeBuildCommand": {
+      "script": "bun run build",
+      "cwd": "../frontend"
+    },
+    "beforeDevCommand": {
+      "script": "bun run dev",
+      "cwd": "../frontend"
+    },
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../frontend/dist"
+  },
+  "app": {
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "title": "bms-dashtray",
+        "width": 380,
+        "height": 700,
+        "resizable": true,
+        "transparent": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "dialog": {}
+  }
+}

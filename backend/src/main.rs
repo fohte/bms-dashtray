@@ -1,5 +1,11 @@
+// Prevents additional console window on Windows in release
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 fn main() {
-    println!("Hello, world!");
+    tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }
 
 #[cfg(test)]
