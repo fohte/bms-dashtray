@@ -1,0 +1,19 @@
+[tools]
+lefthook = "2.1.3"
+"github:ast-grep/ast-grep" = "0.41.0"
+
+# lefthook hooks
+actionlint = "1.7.11"
+bun = "1.3.10"
+"github:fohte/basefmt" = "0.1.0"
+"npm:@commitlint/cli" = "20.4.3"
+"npm:prettier" = "3.8.1"
+shellcheck = "0.11.0"
+shfmt = "3.12.0"
+
+[env]
+# Share target dir across worktrees to avoid full recompilation
+CARGO_TARGET_DIR = "{{config_root}}/target"
+
+[settings]
+npm.bun = true
