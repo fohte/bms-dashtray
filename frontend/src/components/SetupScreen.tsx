@@ -196,7 +196,7 @@ export function SetupScreen({
   const allFound =
     dbFileStatuses.length === DB_FILE_NAMES.length &&
     dbFileStatuses.every((s) => s.found)
-  const canStart = allFound && !isValidating
+  const canStart = allFound && !isValidating && error == null
 
   return (
     <div style={styles.container}>

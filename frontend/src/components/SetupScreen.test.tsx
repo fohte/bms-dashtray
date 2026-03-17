@@ -89,6 +89,19 @@ describe('SetupScreen', () => {
     expect(onSelectFolder).toHaveBeenCalledOnce()
   })
 
+  it('disables START button when error is present even if all files are found', () => {
+    renderSetupScreen({
+      dbFileStatuses: [
+        { name: 'songdata.db', found: true },
+        { name: 'scoredatalog.db', found: true },
+        { name: 'score.db', found: true },
+        { name: 'scorelog.db', found: true },
+      ],
+      error: 'Permission denied',
+    })
+    expect(screen.getByRole('button', { name: 'START' })).toBeDisabled()
+  })
+
   it('calls onStart when START is clicked and enabled', () => {
     const onStart = vi.fn()
     renderSetupScreen({
