@@ -1,3 +1,9 @@
+#![allow(
+    dead_code,
+    unused_imports,
+    reason = "public API for DiffDetector/ConfigManager, not yet consumed"
+)]
+
 mod best_score;
 mod score_log;
 mod song_metadata;
