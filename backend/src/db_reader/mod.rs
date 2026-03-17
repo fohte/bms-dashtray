@@ -1,3 +1,17 @@
+#![allow(
+    dead_code,
+    unused_imports,
+    reason = "public API for DiffDetector/ConfigManager, not yet consumed"
+)]
+
+mod best_score;
+mod score_log;
+mod song_metadata;
+
+pub use best_score::{BestScore, read_best_score};
+pub use score_log::{ScoreLog, read_score_log};
+pub use song_metadata::{SongMetadata, read_song_metadata};
+
 use std::path::Path;
 use std::time::Duration;
 
@@ -28,13 +42,17 @@ pub enum DBError {
 
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 
-fn open_readonly(path: &Path) -> Result<Connection, DBError> {
-    if !path.exists() {
-        return Err(DBError::FileNotFound(path.display().to_string()));
-    }
+fn open_readonly(path: &Path) -> Result<Connection, rusqlite::Error> {
     let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     conn.busy_timeout(BUSY_TIMEOUT)?;
     Ok(conn)
+}
+
+fn open_readonly_checked(path: &Path) -> Result<Connection, DBError> {
+    if !path.exists() {
+        return Err(DBError::FileNotFound(path.display().to_string()));
+    }
+    Ok(open_readonly(path)?)
 }
 
 fn unix_millis_to_iso8601(millis: i64) -> Result<String, rusqlite::Error> {
@@ -49,7 +67,7 @@ fn unix_millis_to_iso8601(millis: i64) -> Result<String, rusqlite::Error> {
 }
 
 pub fn read_all_score_data_logs(path: &Path) -> Result<Vec<ScoreDataLog>, DBError> {
-    let conn = open_readonly(path)?;
+    let conn = open_readonly_checked(path)?;
     let mut stmt = conn.prepare(
         "SELECT sha256, mode, clear, epg, egr, lpg, lgr, minbp, notes, combo, date \
          FROM scoredatalog",
@@ -280,7 +298,7 @@ mod tests {
 
     #[rstest]
     fn test_busy_timeout_is_set(test_db: TestDb) {
-        let conn = open_readonly(&test_db.scoredatalog_path()).expect("failed to open db");
+        let conn = open_readonly_checked(&test_db.scoredatalog_path()).expect("failed to open db");
         let timeout: i64 = conn
             .pragma_query_value(None, "busy_timeout", |row| row.get(0))
             .expect("failed to query busy_timeout");
@@ -289,7 +307,7 @@ mod tests {
 
     #[rstest]
     fn test_database_opened_readonly(test_db: TestDb) {
-        let conn = open_readonly(&test_db.scoredatalog_path()).expect("failed to open db");
+        let conn = open_readonly_checked(&test_db.scoredatalog_path()).expect("failed to open db");
         let result = conn.execute(
             "INSERT INTO scoredatalog \
              (sha256, mode, clear, epg, egr, egd, epr, emr, ems, lpg, lgr, lgd, lpr, lmr, lms, minbp, notes, combo, date) \
