@@ -37,9 +37,15 @@ fn open_readonly(path: &Path) -> Result<Connection, DBError> {
     Ok(conn)
 }
 
-fn unix_millis_to_iso8601(millis: i64) -> String {
-    let dt: DateTime<Utc> = DateTime::from_timestamp_millis(millis).unwrap_or_default();
-    dt.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string()
+fn unix_millis_to_iso8601(millis: i64) -> Result<String, rusqlite::Error> {
+    let dt: DateTime<Utc> = DateTime::from_timestamp_millis(millis).ok_or_else(|| {
+        rusqlite::Error::FromSqlConversionFailure(
+            10,
+            rusqlite::types::Type::Integer,
+            format!("invalid timestamp millis: {millis}").into(),
+        )
+    })?;
+    Ok(dt.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string())
 }
 
 pub fn read_all_score_data_logs(path: &Path) -> Result<Vec<ScoreDataLog>, DBError> {
@@ -64,15 +70,11 @@ pub fn read_all_score_data_logs(path: &Path) -> Result<Vec<ScoreDataLog>, DBErro
             min_bp: row.get(7)?,
             notes: row.get(8)?,
             combo: row.get(9)?,
-            played_at: unix_millis_to_iso8601(date_millis),
+            played_at: unix_millis_to_iso8601(date_millis)?,
         })
     })?;
 
-    let mut results = Vec::new();
-    for row in rows {
-        results.push(row?);
-    }
-    Ok(results)
+    rows.collect::<Result<Vec<_>, _>>().map_err(DBError::from)
 }
 
 pub fn validate_db_paths(player_dir: &Path, song_db_path: &Path) -> Result<(), DBError> {
@@ -94,32 +96,34 @@ mod tests {
 
     use std::fs;
 
+    use indoc::indoc;
     use rstest::{fixture, rstest};
     use rusqlite::{Connection, OpenFlags};
 
-    const SCOREDATALOG_SCHEMA: &str = "\
-        CREATE TABLE scoredatalog (\
-            sha256 TEXT NOT NULL, \
-            mode INTEGER NOT NULL, \
-            clear INTEGER NOT NULL, \
-            epg INTEGER NOT NULL, \
-            egr INTEGER NOT NULL, \
-            egd INTEGER NOT NULL, \
-            epr INTEGER NOT NULL, \
-            emr INTEGER NOT NULL, \
-            ems INTEGER NOT NULL, \
-            lpg INTEGER NOT NULL, \
-            lgr INTEGER NOT NULL, \
-            lgd INTEGER NOT NULL, \
-            lpr INTEGER NOT NULL, \
-            lmr INTEGER NOT NULL, \
-            lms INTEGER NOT NULL, \
-            minbp INTEGER NOT NULL, \
-            notes INTEGER NOT NULL, \
-            combo INTEGER NOT NULL, \
-            date INTEGER NOT NULL, \
-            PRIMARY KEY (sha256, mode)\
-        )";
+    const SCOREDATALOG_SCHEMA: &str = indoc! {"
+        CREATE TABLE scoredatalog (
+            sha256 TEXT NOT NULL,
+            mode INTEGER NOT NULL,
+            clear INTEGER NOT NULL,
+            epg INTEGER NOT NULL,
+            egr INTEGER NOT NULL,
+            egd INTEGER NOT NULL,
+            epr INTEGER NOT NULL,
+            emr INTEGER NOT NULL,
+            ems INTEGER NOT NULL,
+            lpg INTEGER NOT NULL,
+            lgr INTEGER NOT NULL,
+            lgd INTEGER NOT NULL,
+            lpr INTEGER NOT NULL,
+            lmr INTEGER NOT NULL,
+            lms INTEGER NOT NULL,
+            minbp INTEGER NOT NULL,
+            notes INTEGER NOT NULL,
+            combo INTEGER NOT NULL,
+            date INTEGER NOT NULL,
+            PRIMARY KEY (sha256, mode)
+        )
+    "};
 
     struct TestDb {
         dir: tempfile::TempDir,
@@ -132,16 +136,17 @@ mod tests {
 
         fn conn(&self) -> Connection {
             Connection::open_with_flags(self.scoredatalog_path(), OpenFlags::SQLITE_OPEN_READ_WRITE)
-                .unwrap()
+                .expect("failed to open test db")
         }
     }
 
     #[fixture]
     fn test_db() -> TestDb {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("failed to create temp dir");
         let db_path = dir.path().join("scoredatalog.db");
-        let conn = Connection::open(&db_path).unwrap();
-        conn.execute_batch(SCOREDATALOG_SCHEMA).unwrap();
+        let conn = Connection::open(&db_path).expect("failed to open db");
+        conn.execute_batch(SCOREDATALOG_SCHEMA)
+            .expect("failed to create schema");
         TestDb { dir }
     }
 
@@ -166,12 +171,13 @@ mod tests {
              VALUES (?1, ?2, ?3, ?4, ?5, 0, 0, 0, 0, ?6, ?7, 0, 0, 0, 0, ?8, ?9, ?10, ?11)",
             rusqlite::params![sha256, mode, clear, epg, egr, lpg, lgr, minbp, notes, combo, date],
         )
-        .unwrap();
+        .expect("failed to insert record");
     }
 
     #[rstest]
     fn test_read_all_score_data_logs_empty(test_db: TestDb) {
-        let results = read_all_score_data_logs(&test_db.scoredatalog_path()).unwrap();
+        let results = read_all_score_data_logs(&test_db.scoredatalog_path())
+            .expect("failed to read score data logs");
         assert!(results.is_empty());
     }
 
@@ -196,7 +202,8 @@ mod tests {
         );
         drop(conn);
 
-        let results = read_all_score_data_logs(&test_db.scoredatalog_path()).unwrap();
+        let results = read_all_score_data_logs(&test_db.scoredatalog_path())
+            .expect("failed to read score data logs");
         assert_eq!(results.len(), 1);
 
         let record = &results[0];
@@ -243,16 +250,23 @@ mod tests {
         );
         drop(conn);
 
-        let results = read_all_score_data_logs(&test_db.scoredatalog_path()).unwrap();
+        let results = read_all_score_data_logs(&test_db.scoredatalog_path())
+            .expect("failed to read score data logs");
         assert_eq!(results.len(), 2);
 
         // hash_a: ex_score = 200*2 + 100 + 150*2 + 80 = 880
-        let a = results.iter().find(|r| r.sha256 == "hash_a").unwrap();
+        let a = results
+            .iter()
+            .find(|r| r.sha256 == "hash_a")
+            .expect("hash_a not found");
         assert_eq!(a.ex_score, 880);
         assert_eq!(a.mode, 0);
 
         // hash_b: ex_score = 300*2 + 50 + 250*2 + 40 = 1190
-        let b = results.iter().find(|r| r.sha256 == "hash_b").unwrap();
+        let b = results
+            .iter()
+            .find(|r| r.sha256 == "hash_b")
+            .expect("hash_b not found");
         assert_eq!(b.ex_score, 1190);
         assert_eq!(b.mode, 1);
     }
@@ -261,24 +275,21 @@ mod tests {
     fn test_read_all_score_data_logs_file_not_found() {
         let path = Path::new("/tmp/nonexistent_scoredatalog.db");
         let result = read_all_score_data_logs(path);
-        assert!(result.is_err());
-        assert!(
-            matches!(result.unwrap_err(), DBError::FileNotFound(p) if p.contains("nonexistent"))
-        );
+        assert!(matches!(&result, Err(DBError::FileNotFound(p)) if p.contains("nonexistent")));
     }
 
     #[rstest]
     fn test_busy_timeout_is_set(test_db: TestDb) {
-        let conn = open_readonly(&test_db.scoredatalog_path()).unwrap();
+        let conn = open_readonly(&test_db.scoredatalog_path()).expect("failed to open db");
         let timeout: i64 = conn
             .pragma_query_value(None, "busy_timeout", |row| row.get(0))
-            .unwrap();
+            .expect("failed to query busy_timeout");
         assert_eq!(timeout, 5000);
     }
 
     #[rstest]
     fn test_database_opened_readonly(test_db: TestDb) {
-        let conn = open_readonly(&test_db.scoredatalog_path()).unwrap();
+        let conn = open_readonly(&test_db.scoredatalog_path()).expect("failed to open db");
         let result = conn.execute(
             "INSERT INTO scoredatalog \
              (sha256, mode, clear, epg, egr, egd, epr, emr, ems, lpg, lgr, lgd, lpr, lmr, lms, minbp, notes, combo, date) \
@@ -292,35 +303,36 @@ mod tests {
     fn test_validate_db_paths_success(test_db: TestDb) {
         let player_dir = test_db.dir.path();
         let song_db_path = test_db.dir.path().join("songdata.db");
-        fs::write(&song_db_path, "").unwrap();
+        fs::write(&song_db_path, "").expect("failed to create songdata.db");
 
         let result = validate_db_paths(player_dir, &song_db_path);
         assert!(result.is_ok());
     }
 
     #[rstest]
-    fn test_validate_db_paths_missing_scoredatalog() {
-        let dir = tempfile::tempdir().unwrap();
-        let song_db_path = dir.path().join("songdata.db");
-        fs::write(&song_db_path, "").unwrap();
+    #[case::missing_scoredatalog(false, true, "scoredatalog")]
+    #[case::missing_songdata(true, false, "songdata")]
+    fn test_validate_db_paths_missing_files(
+        #[case] create_scoredatalog: bool,
+        #[case] create_songdata: bool,
+        #[case] expected_error_part: &str,
+    ) {
+        let dir = tempfile::tempdir().expect("failed to create temp dir");
+        let player_dir = dir.path();
+        let song_db_path = player_dir.join("songdata.db");
 
-        let result = validate_db_paths(dir.path(), &song_db_path);
-        assert!(result.is_err());
+        if create_scoredatalog {
+            fs::write(player_dir.join("scoredatalog.db"), "")
+                .expect("failed to create scoredatalog.db");
+        }
+        if create_songdata {
+            fs::write(&song_db_path, "").expect("failed to create songdata.db");
+        }
+
+        let result = validate_db_paths(player_dir, &song_db_path);
         assert!(
-            matches!(result.unwrap_err(), DBError::FileNotFound(p) if p.contains("scoredatalog"))
+            matches!(&result, Err(DBError::FileNotFound(p)) if p.contains(expected_error_part))
         );
-    }
-
-    #[rstest]
-    fn test_validate_db_paths_missing_songdata() {
-        let dir = tempfile::tempdir().unwrap();
-        let scoredatalog_path = dir.path().join("scoredatalog.db");
-        fs::write(&scoredatalog_path, "").unwrap();
-        let missing_song_path = dir.path().join("songdata.db");
-
-        let result = validate_db_paths(dir.path(), &missing_song_path);
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DBError::FileNotFound(p) if p.contains("songdata")));
     }
 
     #[rstest]
@@ -328,6 +340,9 @@ mod tests {
     #[case::with_millis(1710400000123, "2024-03-14T07:06:40.123Z")]
     #[case::year_2026(1773849600000, "2026-03-18T16:00:00.000Z")]
     fn test_unix_millis_to_iso8601(#[case] millis: i64, #[case] expected: &str) {
-        assert_eq!(unix_millis_to_iso8601(millis), expected);
+        assert_eq!(
+            unix_millis_to_iso8601(millis).expect("failed to convert timestamp"),
+            expected
+        );
     }
 }
