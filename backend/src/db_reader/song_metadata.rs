@@ -119,10 +119,7 @@ mod tests {
         })
     )]
     #[case::not_found("nonexistent_sha256", None)]
-    fn test_read_song_metadata(
-        #[case] sha256: &str,
-        #[case] expected: Option<SongMetadata>,
-    ) {
+    fn test_read_song_metadata(#[case] sha256: &str, #[case] expected: Option<SongMetadata>) {
         let db_file = create_songdata_db();
         let result = read_song_metadata(db_file.path(), sha256).unwrap();
         assert_eq!(result, expected);

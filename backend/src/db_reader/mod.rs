@@ -2,9 +2,9 @@ mod best_score;
 mod score_log;
 mod song_metadata;
 
-pub use best_score::{read_best_score, BestScore};
-pub use score_log::{read_score_log, ScoreLog};
-pub use song_metadata::{read_song_metadata, SongMetadata};
+pub use best_score::{BestScore, read_best_score};
+pub use score_log::{ScoreLog, read_score_log};
+pub use song_metadata::{SongMetadata, read_song_metadata};
 
 use std::path::Path;
 use std::time::Duration;
