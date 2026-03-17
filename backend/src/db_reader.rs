@@ -131,11 +131,8 @@ mod tests {
         }
 
         fn conn(&self) -> Connection {
-            Connection::open_with_flags(
-                self.scoredatalog_path(),
-                OpenFlags::SQLITE_OPEN_READ_WRITE,
-            )
-            .unwrap()
+            Connection::open_with_flags(self.scoredatalog_path(), OpenFlags::SQLITE_OPEN_READ_WRITE)
+                .unwrap()
         }
     }
 
@@ -182,7 +179,20 @@ mod tests {
         let conn = test_db.conn();
         // epg=100, egr=50, lpg=80, lgr=30 → ex_score = 100*2 + 50 + 80*2 + 30 = 440
         // date = 1710400000000 (2024-03-14T07:06:40.000Z)
-        insert_record(&conn, "abc123", 0, 6, 100, 50, 80, 30, 15, 800, 500, 1710400000000);
+        insert_record(
+            &conn,
+            "abc123",
+            0,
+            6,
+            100,
+            50,
+            80,
+            30,
+            15,
+            800,
+            500,
+            1710400000000,
+        );
         drop(conn);
 
         let results = read_all_score_data_logs(&test_db.scoredatalog_path()).unwrap();
@@ -202,8 +212,34 @@ mod tests {
     #[rstest]
     fn test_read_all_score_data_logs_multiple_records(test_db: TestDb) {
         let conn = test_db.conn();
-        insert_record(&conn, "hash_a", 0, 5, 200, 100, 150, 80, 10, 1000, 900, 1710400000000);
-        insert_record(&conn, "hash_b", 1, 7, 300, 50, 250, 40, 5, 1200, 1100, 1710500000000);
+        insert_record(
+            &conn,
+            "hash_a",
+            0,
+            5,
+            200,
+            100,
+            150,
+            80,
+            10,
+            1000,
+            900,
+            1710400000000,
+        );
+        insert_record(
+            &conn,
+            "hash_b",
+            1,
+            7,
+            300,
+            50,
+            250,
+            40,
+            5,
+            1200,
+            1100,
+            1710500000000,
+        );
         drop(conn);
 
         let results = read_all_score_data_logs(&test_db.scoredatalog_path()).unwrap();
@@ -283,9 +319,7 @@ mod tests {
 
         let result = validate_db_paths(dir.path(), &missing_song_path);
         assert!(result.is_err());
-        assert!(
-            matches!(result.unwrap_err(), DBError::FileNotFound(p) if p.contains("songdata"))
-        );
+        assert!(matches!(result.unwrap_err(), DBError::FileNotFound(p) if p.contains("songdata")));
     }
 
     #[rstest]
