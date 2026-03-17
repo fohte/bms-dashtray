@@ -8,7 +8,7 @@ tauri-build = { version = "=2.5.6", features = [] }
 
 [dependencies]
 notify = "=7.0.0"
-rusqlite = { version = "=0.32.1", features = ["bundled"] }
+rusqlite = { version = "=0.38.0", features = ["bundled"] }
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.149"
 tauri = { version = "=2.10.3", features = ["macos-private-api"] }
