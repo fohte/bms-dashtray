@@ -42,10 +42,6 @@ pub fn update_settings(
         .lock()
         .map_err(|e| format!("failed to acquire lock: {e}"))?;
     manager
-        .update_settings(
-            reset_time.as_deref(),
-            background_transparent,
-            font_size,
-        )
+        .update_settings(reset_time.as_deref(), background_transparent, font_size)
         .map_err(|e| e.to_string())
 }
