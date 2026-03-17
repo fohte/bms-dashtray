@@ -45,16 +45,18 @@ pub fn read_song_metadata(
 
 #[cfg(test)]
 mod tests {
-    use rstest::rstest;
+    use indoc::indoc;
+    use rstest::{fixture, rstest};
     use tempfile::NamedTempFile;
 
     use super::*;
 
-    fn create_songdata_db() -> NamedTempFile {
+    #[fixture]
+    fn songdata_db() -> NamedTempFile {
         let file = NamedTempFile::new().unwrap();
         let conn = rusqlite::Connection::open(file.path()).unwrap();
-        conn.execute_batch(
-            "CREATE TABLE song (
+        conn.execute_batch(indoc! {"
+            CREATE TABLE song (
                 md5 TEXT NOT NULL,
                 sha256 TEXT NOT NULL,
                 title TEXT,
@@ -84,9 +86,9 @@ mod tests {
                 adddate INTEGER,
                 notes INTEGER,
                 charthash TEXT
-            );",
-        )
-        .unwrap();
+            );
+        "})
+            .unwrap();
         conn.execute(
             "INSERT INTO song (md5, sha256, title, artist, level, difficulty, notes, mode, path)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
@@ -119,9 +121,12 @@ mod tests {
         })
     )]
     #[case::not_found("nonexistent_sha256", None)]
-    fn test_read_song_metadata(#[case] sha256: &str, #[case] expected: Option<SongMetadata>) {
-        let db_file = create_songdata_db();
-        let result = read_song_metadata(db_file.path(), sha256).unwrap();
+    fn test_read_song_metadata(
+        songdata_db: NamedTempFile,
+        #[case] sha256: &str,
+        #[case] expected: Option<SongMetadata>,
+    ) {
+        let result = read_song_metadata(songdata_db.path(), sha256).unwrap();
         assert_eq!(result, expected);
     }
 }

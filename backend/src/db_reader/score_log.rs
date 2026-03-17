@@ -44,16 +44,18 @@ pub fn read_score_log(
 
 #[cfg(test)]
 mod tests {
-    use rstest::rstest;
+    use indoc::indoc;
+    use rstest::{fixture, rstest};
     use tempfile::NamedTempFile;
 
     use super::*;
 
-    fn create_scorelog_db() -> NamedTempFile {
+    #[fixture]
+    fn scorelog_db() -> NamedTempFile {
         let file = NamedTempFile::new().unwrap();
         let conn = rusqlite::Connection::open(file.path()).unwrap();
-        conn.execute_batch(
-            "CREATE TABLE scorelog (
+        conn.execute_batch(indoc! {"
+            CREATE TABLE scorelog (
                 sha256 TEXT NOT NULL,
                 mode INTEGER,
                 clear INTEGER,
@@ -65,9 +67,9 @@ mod tests {
                 minbp INTEGER,
                 oldminbp INTEGER,
                 date INTEGER
-            );",
-        )
-        .unwrap();
+            );
+        "})
+            .unwrap();
         conn.execute(
             "INSERT INTO scorelog (sha256, mode, clear, oldclear, score, oldscore, combo, oldcombo, minbp, oldminbp, date)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
@@ -88,13 +90,13 @@ mod tests {
     #[case::wrong_mode("abc123def456", 1, 1710400000, None)]
     #[case::wrong_date("abc123def456", 0, 9999999999, None)]
     fn test_read_score_log(
+        scorelog_db: NamedTempFile,
         #[case] sha256: &str,
         #[case] mode: i32,
         #[case] date: i64,
         #[case] expected: Option<ScoreLog>,
     ) {
-        let db_file = create_scorelog_db();
-        let result = read_score_log(db_file.path(), sha256, mode, date).unwrap();
+        let result = read_score_log(scorelog_db.path(), sha256, mode, date).unwrap();
         assert_eq!(result, expected);
     }
 }

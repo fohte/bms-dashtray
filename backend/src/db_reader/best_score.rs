@@ -51,16 +51,18 @@ pub fn read_best_score(
 
 #[cfg(test)]
 mod tests {
-    use rstest::rstest;
+    use indoc::indoc;
+    use rstest::{fixture, rstest};
     use tempfile::NamedTempFile;
 
     use super::*;
 
-    fn create_score_db() -> NamedTempFile {
+    #[fixture]
+    fn score_db() -> NamedTempFile {
         let file = NamedTempFile::new().unwrap();
         let conn = rusqlite::Connection::open(file.path()).unwrap();
-        conn.execute_batch(
-            "CREATE TABLE score (
+        conn.execute_batch(indoc! {"
+            CREATE TABLE score (
                 sha256 TEXT NOT NULL,
                 mode INTEGER,
                 clear INTEGER,
@@ -91,9 +93,9 @@ mod tests {
                 state INTEGER,
                 scorehash TEXT,
                 PRIMARY KEY (sha256, mode)
-            );",
-        )
-        .unwrap();
+            );
+        "})
+            .unwrap();
         // epg=100, egr=50, lpg=80, lgr=30 → EX score = 100*2 + 50 + 80*2 + 30 = 440
         conn.execute(
             "INSERT INTO score (sha256, mode, clear, epg, egr, lpg, lgr, minbp)
@@ -109,12 +111,12 @@ mod tests {
     #[case::not_found("nonexistent_sha256", 0, None)]
     #[case::wrong_mode("abc123def456", 1, None)]
     fn test_read_best_score(
+        score_db: NamedTempFile,
         #[case] sha256: &str,
         #[case] mode: i32,
         #[case] expected: Option<BestScore>,
     ) {
-        let db_file = create_score_db();
-        let result = read_best_score(db_file.path(), sha256, mode).unwrap();
+        let result = read_best_score(score_db.path(), sha256, mode).unwrap();
         assert_eq!(result, expected);
     }
 }
