@@ -188,7 +188,7 @@ mod tests {
 
     #[rstest::fixture]
     fn ctx() -> TestContext {
-        let dir = tempfile::tempdir().unwrap_or_else(|_| std::process::exit(1));
+        let dir = tempfile::tempdir().unwrap();
         let manager = ConfigManager::new(dir.path().join("config.json"));
         TestContext { _dir: dir, manager }
     }
@@ -196,22 +196,21 @@ mod tests {
     /// Creates a fake beatoraja directory structure with the required DB files.
     fn create_fake_beatoraja_dir(base: &Path) -> PathBuf {
         let root = base.join("beatoraja");
-        fs::create_dir_all(root.join("player").join("default"))
-            .unwrap_or_else(|_| std::process::exit(1));
+        fs::create_dir_all(root.join("player").join("default")).unwrap();
         for file in &[
             "songdata.db",
             "player/default/scoredatalog.db",
             "player/default/score.db",
             "player/default/scorelog.db",
         ] {
-            fs::write(root.join(file), "").unwrap_or_else(|_| std::process::exit(1));
+            fs::write(root.join(file), "").unwrap();
         }
         root
     }
 
     #[rstest]
     fn test_load_returns_default_when_file_missing(ctx: TestContext) {
-        let config = ctx.manager.load().unwrap_or_else(|_| std::process::exit(1));
+        let config = ctx.manager.load().unwrap();
         assert_eq!(config, AppConfig::default());
     }
 
@@ -224,10 +223,8 @@ mod tests {
             background_transparent: true,
             font_size: 16,
         };
-        ctx.manager
-            .save(&config)
-            .unwrap_or_else(|_| std::process::exit(1));
-        let loaded = ctx.manager.load().unwrap_or_else(|_| std::process::exit(1));
+        ctx.manager.save(&config).unwrap();
+        let loaded = ctx.manager.load().unwrap();
         assert_eq!(loaded, config);
     }
 
@@ -242,9 +239,8 @@ mod tests {
               "fontSize": 13
             }
         "#};
-        fs::write(ctx.dir_path().join("config.json"), json)
-            .unwrap_or_else(|_| std::process::exit(1));
-        let config = ctx.manager.load().unwrap_or_else(|_| std::process::exit(1));
+        fs::write(ctx.dir_path().join("config.json"), json).unwrap();
+        let config = ctx.manager.load().unwrap();
         assert_eq!(config.beatoraja_root, "C:\\beatoraja");
         assert_eq!(config.player_name, "default");
     }
@@ -252,21 +248,13 @@ mod tests {
     #[rstest]
     fn test_validate_and_save_succeeds_with_valid_paths(ctx: TestContext) {
         let beatoraja_root = create_fake_beatoraja_dir(ctx.dir_path());
-        let result = ctx.manager.validate_and_save(
-            beatoraja_root
-                .to_str()
-                .unwrap_or_else(|| std::process::exit(1)),
-            "default",
-        );
+        let result = ctx
+            .manager
+            .validate_and_save(beatoraja_root.to_str().unwrap(), "default");
         assert!(result.is_ok());
 
-        let config = ctx.manager.load().unwrap_or_else(|_| std::process::exit(1));
-        assert_eq!(
-            config.beatoraja_root,
-            beatoraja_root
-                .to_str()
-                .unwrap_or_else(|| std::process::exit(1))
-        );
+        let config = ctx.manager.load().unwrap();
+        assert_eq!(config.beatoraja_root, beatoraja_root.to_str().unwrap());
         assert_eq!(config.player_name, "default");
     }
 
@@ -280,8 +268,7 @@ mod tests {
             Err(ConfigError::DbFileNotFound { path }) => {
                 assert_eq!(path, "/nonexistent/path/songdata.db");
             }
-            // clippy denies panic!, so std::process::exit is the fallback for unreachable test branches
-            _ => std::process::exit(1),
+            _ => panic!("expected DbFileNotFound error"),
         }
     }
 
@@ -294,21 +281,14 @@ mod tests {
             background_transparent: true,
             font_size: 20,
         };
-        ctx.manager
-            .save(&initial)
-            .unwrap_or_else(|_| std::process::exit(1));
+        ctx.manager.save(&initial).unwrap();
 
         let beatoraja_root = create_fake_beatoraja_dir(ctx.dir_path());
         ctx.manager
-            .validate_and_save(
-                beatoraja_root
-                    .to_str()
-                    .unwrap_or_else(|| std::process::exit(1)),
-                "default",
-            )
-            .unwrap_or_else(|_| std::process::exit(1));
+            .validate_and_save(beatoraja_root.to_str().unwrap(), "default")
+            .unwrap();
 
-        let config = ctx.manager.load().unwrap_or_else(|_| std::process::exit(1));
+        let config = ctx.manager.load().unwrap();
         assert_eq!(config.reset_time, "07:00");
         assert!(config.background_transparent);
         assert_eq!(config.font_size, 20);
@@ -316,15 +296,13 @@ mod tests {
 
     #[rstest]
     fn test_update_settings_partial(ctx: TestContext) {
-        ctx.manager
-            .save(&AppConfig::default())
-            .unwrap_or_else(|_| std::process::exit(1));
+        ctx.manager.save(&AppConfig::default()).unwrap();
 
         ctx.manager
             .update_settings(Some("06:30"), None, Some(18))
-            .unwrap_or_else(|_| std::process::exit(1));
+            .unwrap();
 
-        let config = ctx.manager.load().unwrap_or_else(|_| std::process::exit(1));
+        let config = ctx.manager.load().unwrap();
         assert_eq!(config.reset_time, "06:30");
         assert!(!config.background_transparent); // unchanged
         assert_eq!(config.font_size, 18);
@@ -369,9 +347,7 @@ mod tests {
                 ..Default::default()
             };
             let expected_path = PathBuf::from(expected);
-            let file_name = expected_path
-                .file_name()
-                .unwrap_or_else(|| std::process::exit(1));
+            let file_name = expected_path.file_name().unwrap();
             let actual = if file_name == "scoredatalog.db" {
                 config.scoredatalog_db_path()
             } else if file_name == "score.db" {
