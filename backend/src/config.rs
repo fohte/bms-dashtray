@@ -280,7 +280,7 @@ mod tests {
         assert!(result.is_err());
         match result {
             Err(ConfigError::DbFileNotFound { path }) => {
-                assert!(path.contains("songdata.db"));
+                assert_eq!(path, "/nonexistent/path/songdata.db");
             }
             _ => std::process::exit(1),
         }
