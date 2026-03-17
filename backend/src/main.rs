@@ -12,13 +12,3 @@ fn main() {
         std::process::exit(1);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use rstest::rstest;
-
-    #[rstest]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
