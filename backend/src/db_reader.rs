@@ -145,6 +145,7 @@ mod tests {
         TestDb { dir }
     }
 
+    #[expect(clippy::too_many_arguments, reason = "test helper mirrors DB columns")]
     fn insert_record(
         conn: &Connection,
         sha256: &str,

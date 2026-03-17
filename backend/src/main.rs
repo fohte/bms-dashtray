@@ -1,6 +1,11 @@
 // Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+// Not yet referenced from main; will be used by DiffDetector.
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "public API will be consumed by future modules")
+)]
 mod db_reader;
 
 fn main() {
