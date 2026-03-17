@@ -95,12 +95,6 @@ pub enum ConfigError {
     DbFileNotFound { path: String },
 }
 
-impl From<ConfigError> for String {
-    fn from(e: ConfigError) -> Self {
-        e.to_string()
-    }
-}
-
 pub struct ConfigManager {
     config_path: PathBuf,
 }
@@ -181,20 +175,27 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
-    #[rstest::fixture]
-    fn config_dir() -> TempDir {
-        tempfile::tempdir().unwrap_or_else(|_| {
-            std::process::exit(1);
-        })
+    struct TestContext {
+        _dir: TempDir,
+        manager: ConfigManager,
     }
 
-    fn make_manager(dir: &TempDir) -> ConfigManager {
-        ConfigManager::new(dir.path().join("config.json"))
+    impl TestContext {
+        fn dir_path(&self) -> &Path {
+            self._dir.path()
+        }
+    }
+
+    #[rstest::fixture]
+    fn ctx() -> TestContext {
+        let dir = tempfile::tempdir().unwrap_or_else(|_| std::process::exit(1));
+        let manager = ConfigManager::new(dir.path().join("config.json"));
+        TestContext { _dir: dir, manager }
     }
 
     /// Creates a fake beatoraja directory structure with the required DB files.
-    fn create_fake_beatoraja_dir(dir: &TempDir) -> PathBuf {
-        let root = dir.path().join("beatoraja");
+    fn create_fake_beatoraja_dir(base: &Path) -> PathBuf {
+        let root = base.join("beatoraja");
         fs::create_dir_all(root.join("player").join("default"))
             .unwrap_or_else(|_| std::process::exit(1));
         for file in &[
@@ -209,15 +210,13 @@ mod tests {
     }
 
     #[rstest]
-    fn test_load_returns_default_when_file_missing(config_dir: TempDir) {
-        let manager = make_manager(&config_dir);
-        let config = manager.load().unwrap_or_else(|_| std::process::exit(1));
+    fn test_load_returns_default_when_file_missing(ctx: TestContext) {
+        let config = ctx.manager.load().unwrap_or_else(|_| std::process::exit(1));
         assert_eq!(config, AppConfig::default());
     }
 
     #[rstest]
-    fn test_save_and_load_roundtrip(config_dir: TempDir) {
-        let manager = make_manager(&config_dir);
+    fn test_save_and_load_roundtrip(ctx: TestContext) {
         let config = AppConfig {
             beatoraja_root: "/path/to/beatoraja".to_string(),
             player_name: "player1".to_string(),
@@ -225,16 +224,15 @@ mod tests {
             background_transparent: true,
             font_size: 16,
         };
-        manager
+        ctx.manager
             .save(&config)
             .unwrap_or_else(|_| std::process::exit(1));
-        let loaded = manager.load().unwrap_or_else(|_| std::process::exit(1));
+        let loaded = ctx.manager.load().unwrap_or_else(|_| std::process::exit(1));
         assert_eq!(loaded, config);
     }
 
     #[rstest]
-    fn test_load_parses_json(config_dir: TempDir) {
-        let manager = make_manager(&config_dir);
+    fn test_load_parses_json(ctx: TestContext) {
         let json = indoc! {r#"
             {
               "beatorajaRoot": "C:\\beatoraja",
@@ -244,18 +242,17 @@ mod tests {
               "fontSize": 13
             }
         "#};
-        fs::write(config_dir.path().join("config.json"), json)
+        fs::write(ctx.dir_path().join("config.json"), json)
             .unwrap_or_else(|_| std::process::exit(1));
-        let config = manager.load().unwrap_or_else(|_| std::process::exit(1));
+        let config = ctx.manager.load().unwrap_or_else(|_| std::process::exit(1));
         assert_eq!(config.beatoraja_root, "C:\\beatoraja");
         assert_eq!(config.player_name, "default");
     }
 
     #[rstest]
-    fn test_validate_and_save_succeeds_with_valid_paths(config_dir: TempDir) {
-        let manager = make_manager(&config_dir);
-        let beatoraja_root = create_fake_beatoraja_dir(&config_dir);
-        let result = manager.validate_and_save(
+    fn test_validate_and_save_succeeds_with_valid_paths(ctx: TestContext) {
+        let beatoraja_root = create_fake_beatoraja_dir(ctx.dir_path());
+        let result = ctx.manager.validate_and_save(
             beatoraja_root
                 .to_str()
                 .unwrap_or_else(|| std::process::exit(1)),
@@ -263,7 +260,7 @@ mod tests {
         );
         assert!(result.is_ok());
 
-        let config = manager.load().unwrap_or_else(|_| std::process::exit(1));
+        let config = ctx.manager.load().unwrap_or_else(|_| std::process::exit(1));
         assert_eq!(
             config.beatoraja_root,
             beatoraja_root
@@ -274,21 +271,22 @@ mod tests {
     }
 
     #[rstest]
-    fn test_validate_and_save_fails_with_missing_db(config_dir: TempDir) {
-        let manager = make_manager(&config_dir);
-        let result = manager.validate_and_save("/nonexistent/path", "player1");
+    fn test_validate_and_save_fails_with_missing_db(ctx: TestContext) {
+        let result = ctx
+            .manager
+            .validate_and_save("/nonexistent/path", "player1");
         assert!(result.is_err());
         match result {
             Err(ConfigError::DbFileNotFound { path }) => {
                 assert_eq!(path, "/nonexistent/path/songdata.db");
             }
+            // clippy denies panic!, so std::process::exit is the fallback for unreachable test branches
             _ => std::process::exit(1),
         }
     }
 
     #[rstest]
-    fn test_validate_and_save_preserves_existing_settings(config_dir: TempDir) {
-        let manager = make_manager(&config_dir);
+    fn test_validate_and_save_preserves_existing_settings(ctx: TestContext) {
         let initial = AppConfig {
             beatoraja_root: String::new(),
             player_name: String::new(),
@@ -296,12 +294,12 @@ mod tests {
             background_transparent: true,
             font_size: 20,
         };
-        manager
+        ctx.manager
             .save(&initial)
             .unwrap_or_else(|_| std::process::exit(1));
 
-        let beatoraja_root = create_fake_beatoraja_dir(&config_dir);
-        manager
+        let beatoraja_root = create_fake_beatoraja_dir(ctx.dir_path());
+        ctx.manager
             .validate_and_save(
                 beatoraja_root
                     .to_str()
@@ -310,24 +308,23 @@ mod tests {
             )
             .unwrap_or_else(|_| std::process::exit(1));
 
-        let config = manager.load().unwrap_or_else(|_| std::process::exit(1));
+        let config = ctx.manager.load().unwrap_or_else(|_| std::process::exit(1));
         assert_eq!(config.reset_time, "07:00");
         assert!(config.background_transparent);
         assert_eq!(config.font_size, 20);
     }
 
     #[rstest]
-    fn test_update_settings_partial(config_dir: TempDir) {
-        let manager = make_manager(&config_dir);
-        manager
+    fn test_update_settings_partial(ctx: TestContext) {
+        ctx.manager
             .save(&AppConfig::default())
             .unwrap_or_else(|_| std::process::exit(1));
 
-        manager
+        ctx.manager
             .update_settings(Some("06:30"), None, Some(18))
             .unwrap_or_else(|_| std::process::exit(1));
 
-        let config = manager.load().unwrap_or_else(|_| std::process::exit(1));
+        let config = ctx.manager.load().unwrap_or_else(|_| std::process::exit(1));
         assert_eq!(config.reset_time, "06:30");
         assert!(!config.background_transparent); // unchanged
         assert_eq!(config.font_size, 18);
@@ -339,31 +336,29 @@ mod tests {
         #[rstest]
         #[case::songdata("C:\\beatoraja", "default", "C:\\beatoraja/songdata.db")]
         #[case::unix_path("/home/user/beatoraja", "player1", "/home/user/beatoraja/songdata.db")]
-        fn test_songdata_db_path(
-            #[case] root: &str,
-            #[case] _player: &str,
-            #[case] expected: &str,
-        ) {
+        fn test_songdata_db_path(#[case] root: &str, #[case] player: &str, #[case] expected: &str) {
             let config = AppConfig {
                 beatoraja_root: root.to_string(),
-                player_name: _player.to_string(),
+                player_name: player.to_string(),
                 ..Default::default()
             };
             assert_eq!(config.songdata_db_path(), PathBuf::from(expected));
         }
 
         #[rstest]
-        #[case::default_player(
+        #[case::scoredatalog_default(
             "/beatoraja",
             "default",
             "/beatoraja/player/default/scoredatalog.db"
         )]
-        #[case::custom_player(
+        #[case::scoredatalog_custom(
             "/beatoraja",
             "myplayer",
             "/beatoraja/player/myplayer/scoredatalog.db"
         )]
-        fn test_scoredatalog_db_path(
+        #[case::score_db("/beatoraja", "default", "/beatoraja/player/default/score.db")]
+        #[case::scorelog_db("/beatoraja", "default", "/beatoraja/player/default/scorelog.db")]
+        fn test_player_scoped_db_path(
             #[case] root: &str,
             #[case] player: &str,
             #[case] expected: &str,
@@ -373,26 +368,18 @@ mod tests {
                 player_name: player.to_string(),
                 ..Default::default()
             };
-            assert_eq!(config.scoredatalog_db_path(), PathBuf::from(expected));
-        }
-
-        #[rstest]
-        #[case::score_db("/beatoraja", "default", "/beatoraja/player/default/score.db")]
-        #[case::scorelog_db("/beatoraja", "default", "/beatoraja/player/default/scorelog.db")]
-        fn test_score_and_scorelog_db_paths(
-            #[case] root: &str,
-            #[case] player: &str,
-            #[case] _expected: &str,
-        ) {
-            let config = AppConfig {
-                beatoraja_root: root.to_string(),
-                player_name: player.to_string(),
-                ..Default::default()
+            let expected_path = PathBuf::from(expected);
+            let file_name = expected_path
+                .file_name()
+                .unwrap_or_else(|| std::process::exit(1));
+            let actual = if file_name == "scoredatalog.db" {
+                config.scoredatalog_db_path()
+            } else if file_name == "score.db" {
+                config.score_db_path()
+            } else {
+                config.scorelog_db_path()
             };
-            // Verify all player-scoped DB paths are under the correct directory
-            let player_dir = PathBuf::from(root).join("player").join(player);
-            assert!(config.score_db_path().starts_with(&player_dir));
-            assert!(config.scorelog_db_path().starts_with(&player_dir));
+            assert_eq!(actual, expected_path);
         }
 
         #[rstest]
