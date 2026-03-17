@@ -3,6 +3,7 @@
 
 mod commands;
 mod config;
+mod db_reader;
 
 use std::sync::Mutex;
 
