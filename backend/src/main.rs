@@ -4,6 +4,7 @@
 mod commands;
 mod config;
 mod db_reader;
+mod file_watcher;
 
 use std::sync::Mutex;
 
