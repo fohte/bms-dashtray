@@ -1,0 +1,432 @@
+use std::fs;
+use std::path::PathBuf;
+
+use chrono::{NaiveDate, NaiveTime};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PlayRecord {
+    pub id: String,
+    pub sha256: String,
+    pub mode: i32,
+    pub clear: i32,
+    pub ex_score: i32,
+    pub min_bp: i32,
+    pub notes: i32,
+    pub combo: i32,
+    pub played_at: String,
+    pub title: String,
+    pub artist: String,
+    pub level: i32,
+    pub difficulty: i32,
+    pub previous_clear: Option<i32>,
+    pub previous_ex_score: Option<i32>,
+    pub previous_min_bp: Option<i32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct HistoryFile {
+    date: String,
+    records: Vec<PlayRecord>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum StoreError {
+    #[error("failed to read history file: {0}")]
+    ReadFile(#[source] std::io::Error),
+    #[error("failed to write history file: {0}")]
+    WriteFile(#[source] std::io::Error),
+    #[error("failed to create directory: {0}")]
+    CreateDir(#[source] std::io::Error),
+    #[error("failed to parse history file: {0}")]
+    Parse(#[source] serde_json::Error),
+    #[error("failed to serialize history: {0}")]
+    Serialize(#[source] serde_json::Error),
+    #[error("invalid reset time format: {0}")]
+    InvalidResetTime(String),
+    #[error("invalid playedAt timestamp: {0}")]
+    InvalidTimestamp(String),
+}
+
+/// Returns the logical "today" date given a reset time.
+///
+/// If the current wall-clock time is before `reset_time`, the logical date is
+/// yesterday; otherwise it is the calendar date.
+fn logical_today(now: chrono::DateTime<chrono::Local>, reset_time: NaiveTime) -> NaiveDate {
+    if now.time() < reset_time {
+        now.date_naive() - chrono::Duration::days(1)
+    } else {
+        now.date_naive()
+    }
+}
+
+fn parse_reset_time(reset_time: &str) -> Result<NaiveTime, StoreError> {
+    NaiveTime::parse_from_str(reset_time, "%H:%M")
+        .map_err(|_| StoreError::InvalidResetTime(reset_time.to_string()))
+}
+
+/// Extracts the logical date of a play record given a reset time.
+///
+/// The `played_at` field is an ISO 8601 timestamp. The logical date accounts
+/// for the reset boundary: plays before the reset time belong to the previous
+/// calendar day.
+fn record_logical_date(played_at: &str, reset_time: NaiveTime) -> Result<NaiveDate, StoreError> {
+    let dt = chrono::DateTime::parse_from_rfc3339(played_at)
+        .map_err(|_| StoreError::InvalidTimestamp(played_at.to_string()))?;
+    let local = dt.with_timezone(&chrono::Local);
+    if local.time() < reset_time {
+        Ok(local.date_naive() - chrono::Duration::days(1))
+    } else {
+        Ok(local.date_naive())
+    }
+}
+
+pub struct HistoryStore {
+    history_path: PathBuf,
+    records: Vec<PlayRecord>,
+    reset_time: String,
+}
+
+impl HistoryStore {
+    pub fn new(history_path: PathBuf, reset_time: &str) -> Self {
+        Self {
+            history_path,
+            records: Vec::new(),
+            reset_time: reset_time.to_string(),
+        }
+    }
+
+    pub fn set_reset_time(&mut self, reset_time: &str) {
+        self.reset_time = reset_time.to_string();
+    }
+
+    pub fn add_play_records(&mut self, records: Vec<PlayRecord>) -> Result<(), StoreError> {
+        self.records.extend(records);
+        // Sort by playedAt descending (most recent first)
+        self.records.sort_by(|a, b| b.played_at.cmp(&a.played_at));
+        Ok(())
+    }
+
+    pub fn get_today_records(&self) -> Result<Vec<PlayRecord>, StoreError> {
+        let reset_time = parse_reset_time(&self.reset_time)?;
+        let today = logical_today(chrono::Local::now(), reset_time);
+
+        let filtered: Vec<PlayRecord> = self
+            .records
+            .iter()
+            .filter(|r| {
+                record_logical_date(&r.played_at, reset_time)
+                    .map(|d| d == today)
+                    .unwrap_or(false)
+            })
+            .cloned()
+            .collect();
+        Ok(filtered)
+    }
+
+    /// Returns today's records using a caller-provided "now" timestamp (for testing).
+    #[cfg(test)]
+    fn get_today_records_with_now(
+        &self,
+        now: chrono::DateTime<chrono::Local>,
+    ) -> Result<Vec<PlayRecord>, StoreError> {
+        let reset_time = parse_reset_time(&self.reset_time)?;
+        let today = logical_today(now, reset_time);
+
+        let filtered: Vec<PlayRecord> = self
+            .records
+            .iter()
+            .filter(|r| {
+                record_logical_date(&r.played_at, reset_time)
+                    .map(|d| d == today)
+                    .unwrap_or(false)
+            })
+            .cloned()
+            .collect();
+        Ok(filtered)
+    }
+
+    pub fn reset(&mut self) -> Result<(), StoreError> {
+        self.records.clear();
+        self.persist()
+    }
+
+    pub fn persist(&self) -> Result<(), StoreError> {
+        if let Some(parent) = self.history_path.parent() {
+            fs::create_dir_all(parent).map_err(StoreError::CreateDir)?;
+        }
+
+        let reset_time = parse_reset_time(&self.reset_time)?;
+        let today = logical_today(chrono::Local::now(), reset_time);
+
+        let file = HistoryFile {
+            date: today.format("%Y-%m-%d").to_string(),
+            records: self.records.clone(),
+        };
+        let contents = serde_json::to_string_pretty(&file).map_err(StoreError::Serialize)?;
+        fs::write(&self.history_path, contents).map_err(StoreError::WriteFile)
+    }
+
+    pub fn restore(&mut self) -> Result<(), StoreError> {
+        if !self.history_path.exists() {
+            return Ok(());
+        }
+
+        let contents = fs::read_to_string(&self.history_path).map_err(StoreError::ReadFile)?;
+        let file: HistoryFile = serde_json::from_str(&contents).map_err(StoreError::Parse)?;
+
+        let reset_time = parse_reset_time(&self.reset_time)?;
+        let today = logical_today(chrono::Local::now(), reset_time);
+
+        if file.date == today.format("%Y-%m-%d").to_string() {
+            self.records = file.records;
+            // Ensure sorted by playedAt descending
+            self.records.sort_by(|a, b| b.played_at.cmp(&a.played_at));
+        } else {
+            // Date has changed; discard stale records
+            self.records.clear();
+        }
+
+        Ok(())
+    }
+
+    /// Restore with a caller-provided "now" timestamp (for testing).
+    #[cfg(test)]
+    fn restore_with_now(&mut self, now: chrono::DateTime<chrono::Local>) -> Result<(), StoreError> {
+        if !self.history_path.exists() {
+            return Ok(());
+        }
+
+        let contents = fs::read_to_string(&self.history_path).map_err(StoreError::ReadFile)?;
+        let file: HistoryFile = serde_json::from_str(&contents).map_err(StoreError::Parse)?;
+
+        let reset_time = parse_reset_time(&self.reset_time)?;
+        let today = logical_today(now, reset_time);
+
+        if file.date == today.format("%Y-%m-%d").to_string() {
+            self.records = file.records;
+            self.records.sort_by(|a, b| b.played_at.cmp(&a.played_at));
+        } else {
+            self.records.clear();
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone as _;
+    use indoc::indoc;
+    use rstest::{fixture, rstest};
+    use tempfile::TempDir;
+
+    struct TestContext {
+        _dir: TempDir,
+        store: HistoryStore,
+    }
+
+    impl TestContext {
+        fn history_path(&self) -> PathBuf {
+            self._dir.path().join("history.json")
+        }
+    }
+
+    #[fixture]
+    fn ctx() -> TestContext {
+        let dir = tempfile::tempdir().unwrap();
+        let history_path = dir.path().join("history.json");
+        let store = HistoryStore::new(history_path, "05:00");
+        TestContext { _dir: dir, store }
+    }
+
+    fn make_record(id: &str, played_at: &str) -> PlayRecord {
+        PlayRecord {
+            id: id.to_string(),
+            sha256: "abc123".to_string(),
+            mode: 0,
+            clear: 6,
+            ex_score: 1234,
+            min_bp: 15,
+            notes: 800,
+            combo: 500,
+            played_at: played_at.to_string(),
+            title: "Test Song".to_string(),
+            artist: "Test Artist".to_string(),
+            level: 12,
+            difficulty: 1,
+            previous_clear: Some(5),
+            previous_ex_score: Some(1100),
+            previous_min_bp: Some(20),
+        }
+    }
+
+    #[rstest]
+    fn test_add_records_sorts_by_played_at_descending(mut ctx: TestContext) {
+        let r1 = make_record("r1", "2026-03-18T10:00:00+09:00");
+        let r2 = make_record("r2", "2026-03-18T12:00:00+09:00");
+        let r3 = make_record("r3", "2026-03-18T11:00:00+09:00");
+
+        ctx.store.add_play_records(vec![r1, r2, r3]).unwrap();
+
+        let records = ctx.store.records.clone();
+        assert_eq!(records[0].id, "r2");
+        assert_eq!(records[1].id, "r3");
+        assert_eq!(records[2].id, "r1");
+    }
+
+    #[rstest]
+    fn test_get_today_records_filters_by_date(mut ctx: TestContext) {
+        // Simulate "now" as 2026-03-18 14:00:00+09:00 with reset_time 05:00
+        // Logical today = 2026-03-18
+        let now = chrono::Local
+            .with_ymd_and_hms(2026, 3, 18, 14, 0, 0)
+            .unwrap();
+
+        let today_record = make_record("today", "2026-03-18T10:00:00+09:00");
+        let yesterday_record = make_record("yesterday", "2026-03-17T10:00:00+09:00");
+
+        ctx.store
+            .add_play_records(vec![today_record, yesterday_record])
+            .unwrap();
+
+        let today_records = ctx.store.get_today_records_with_now(now).unwrap();
+        assert_eq!(today_records.len(), 1);
+        assert_eq!(today_records[0].id, "today");
+    }
+
+    #[rstest]
+    fn test_reset_clears_all_records(mut ctx: TestContext) {
+        let r1 = make_record("r1", "2026-03-18T10:00:00+09:00");
+        ctx.store.add_play_records(vec![r1]).unwrap();
+
+        ctx.store.reset().unwrap();
+
+        assert!(ctx.store.records.is_empty());
+    }
+
+    #[rstest]
+    fn test_persist_and_restore_roundtrip(mut ctx: TestContext) {
+        let now = chrono::Local
+            .with_ymd_and_hms(2026, 3, 18, 14, 0, 0)
+            .unwrap();
+
+        let r1 = make_record("r1", "2026-03-18T10:00:00+09:00");
+        let r2 = make_record("r2", "2026-03-18T12:00:00+09:00");
+
+        ctx.store.add_play_records(vec![r1, r2]).unwrap();
+
+        // Manually write the file with today's date to simulate persist
+        let file = HistoryFile {
+            date: "2026-03-18".to_string(),
+            records: ctx.store.records.clone(),
+        };
+        let contents = serde_json::to_string_pretty(&file).unwrap();
+        fs::write(ctx.history_path(), &contents).unwrap();
+
+        // Create a new store and restore
+        let mut new_store = HistoryStore::new(ctx.history_path(), "05:00");
+        new_store.restore_with_now(now).unwrap();
+
+        assert_eq!(new_store.records.len(), 2);
+        assert_eq!(new_store.records[0].id, "r2");
+        assert_eq!(new_store.records[1].id, "r1");
+    }
+
+    #[rstest]
+    fn test_restore_discards_stale_records_on_date_change(mut ctx: TestContext) {
+        // Write a history file with yesterday's date
+        let yesterday_file = indoc! {r#"
+            {
+              "date": "2026-03-17",
+              "records": [
+                {
+                  "id": "old",
+                  "sha256": "abc",
+                  "mode": 0,
+                  "clear": 6,
+                  "exScore": 1234,
+                  "minBp": 15,
+                  "notes": 800,
+                  "combo": 500,
+                  "playedAt": "2026-03-17T10:00:00+09:00",
+                  "title": "Test",
+                  "artist": "Test",
+                  "level": 12,
+                  "difficulty": 1,
+                  "previousClear": null,
+                  "previousExScore": null,
+                  "previousMinBp": null
+                }
+              ]
+            }
+        "#};
+        fs::write(ctx.history_path(), yesterday_file).unwrap();
+
+        // Restore with "now" = 2026-03-18 14:00 (logical today = 2026-03-18)
+        let now = chrono::Local
+            .with_ymd_and_hms(2026, 3, 18, 14, 0, 0)
+            .unwrap();
+        ctx.store.restore_with_now(now).unwrap();
+
+        assert!(ctx.store.records.is_empty());
+    }
+
+    #[rstest]
+    fn test_reset_time_boundary(mut ctx: TestContext) {
+        // At 04:59, logical today should be 2026-03-17 (before reset time 05:00)
+        let before_reset = chrono::Local
+            .with_ymd_and_hms(2026, 3, 18, 4, 59, 0)
+            .unwrap();
+
+        // Record played at 2026-03-17 23:00 (logical date = 2026-03-17)
+        let late_night_record = make_record("late", "2026-03-17T23:00:00+09:00");
+        // Record played at 2026-03-18 06:00 (logical date = 2026-03-18)
+        let next_day_record = make_record("next", "2026-03-18T06:00:00+09:00");
+
+        ctx.store
+            .add_play_records(vec![late_night_record, next_day_record])
+            .unwrap();
+
+        let records = ctx.store.get_today_records_with_now(before_reset).unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].id, "late");
+    }
+
+    #[rstest]
+    fn test_early_morning_play_belongs_to_previous_day(mut ctx: TestContext) {
+        // Play at 03:00 on 2026-03-18 should belong to logical date 2026-03-17
+        let now = chrono::Local
+            .with_ymd_and_hms(2026, 3, 18, 3, 30, 0)
+            .unwrap();
+
+        let early_record = make_record("early", "2026-03-18T03:00:00+09:00");
+        ctx.store.add_play_records(vec![early_record]).unwrap();
+
+        let records = ctx.store.get_today_records_with_now(now).unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].id, "early");
+    }
+
+    #[rstest]
+    fn test_restore_with_no_file_is_noop(mut ctx: TestContext) {
+        ctx.store.restore().unwrap();
+        assert!(ctx.store.records.is_empty());
+    }
+
+    #[rstest]
+    fn test_reset_persists_empty_file(mut ctx: TestContext) {
+        let r1 = make_record("r1", "2026-03-18T10:00:00+09:00");
+        ctx.store.add_play_records(vec![r1]).unwrap();
+
+        ctx.store.reset().unwrap();
+
+        assert!(ctx.history_path().exists());
+        let contents = fs::read_to_string(ctx.history_path()).unwrap();
+        let file: HistoryFile = serde_json::from_str(&contents).unwrap();
+        assert!(file.records.is_empty());
+    }
+}
