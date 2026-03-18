@@ -1,17 +1,30 @@
 use std::sync::Mutex;
 
-use serde::Serialize;
 use tauri::State;
 
 use crate::config::{AppConfig, ConfigError, ConfigManager};
 
 pub struct ConfigManagerState(pub Mutex<ConfigManager>);
 
-#[derive(Debug, Serialize)]
-#[serde(tag = "kind", content = "message")]
+#[derive(Debug)]
 pub enum CommandError {
     Lock(String),
     Config(String),
+}
+
+// Serialize as a plain string so the frontend receives a readable error message
+// rather than a JSON object that would stringify as "[object Object]".
+impl serde::Serialize for CommandError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let message = match self {
+            CommandError::Lock(msg) => msg,
+            CommandError::Config(msg) => msg,
+        };
+        serializer.serialize_str(message)
+    }
 }
 
 impl From<ConfigError> for CommandError {
