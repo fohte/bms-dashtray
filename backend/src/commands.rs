@@ -66,18 +66,27 @@ pub fn validate_and_save_config(
 
 #[tauri::command]
 pub fn update_settings(
-    state: State<'_, ConfigManagerState>,
+    config_state: State<'_, ConfigManagerState>,
+    history_state: State<'_, HistoryStoreState>,
     reset_time: Option<String>,
     background_transparent: Option<bool>,
     font_size: Option<i32>,
 ) -> Result<(), CommandError> {
-    let manager = state
+    let manager = config_state
         .0
         .lock()
         .map_err(|e| CommandError::Lock(e.to_string()))?;
-    manager
-        .update_settings(reset_time.as_deref(), background_transparent, font_size)
-        .map_err(Into::into)
+    manager.update_settings(reset_time.as_deref(), background_transparent, font_size)?;
+
+    if let Some(ref rt) = reset_time {
+        let mut store = history_state
+            .0
+            .lock()
+            .map_err(|e| CommandError::Lock(e.to_string()))?;
+        store.set_reset_time(rt);
+    }
+
+    Ok(())
 }
 
 #[tauri::command]

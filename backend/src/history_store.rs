@@ -115,7 +115,14 @@ impl HistoryStore {
     pub fn add_play_records(&mut self, records: Vec<PlayRecord>) -> Result<(), StoreError> {
         self.records.extend(records);
         // Sort by playedAt descending (most recent first)
-        self.records.sort_by(|a, b| b.played_at.cmp(&a.played_at));
+        self.records.sort_by(|a, b| {
+            let a_dt = DateTime::parse_from_rfc3339(&a.played_at);
+            let b_dt = DateTime::parse_from_rfc3339(&b.played_at);
+            match (a_dt, b_dt) {
+                (Ok(a), Ok(b)) => b.cmp(&a),
+                _ => b.played_at.cmp(&a.played_at),
+            }
+        });
         Ok(())
     }
 
@@ -188,7 +195,14 @@ impl HistoryStore {
         if file.date == today.format("%Y-%m-%d").to_string() {
             self.records = file.records;
             // Ensure sorted by playedAt descending
-            self.records.sort_by(|a, b| b.played_at.cmp(&a.played_at));
+            self.records.sort_by(|a, b| {
+                let a_dt = DateTime::parse_from_rfc3339(&a.played_at);
+                let b_dt = DateTime::parse_from_rfc3339(&b.played_at);
+                match (a_dt, b_dt) {
+                    (Ok(a), Ok(b)) => b.cmp(&a),
+                    _ => b.played_at.cmp(&a.played_at),
+                }
+            });
         } else {
             // Date has changed; discard stale records
             self.records.clear();
@@ -294,6 +308,12 @@ mod tests {
         vec![("early", "2026-03-18T03:00:00+09:00")],
         vec!["early"],
     )]
+    #[case::utc_timestamp_matches_local_today(
+        // User in JST at 13:59 (= 04:59 UTC), record stored as UTC
+        jst_datetime(2026, 3, 18, 13, 59, 0),
+        vec![("utc", "2026-03-18T04:59:00.000Z")],
+        vec!["utc"],
+    )]
     fn test_get_today_records(
         mut ctx: TestContext,
         #[case] now: DateTime<FixedOffset>,
@@ -309,20 +329,6 @@ mod tests {
         let today_records = ctx.store.get_today_records_impl(now).unwrap();
         let ids: Vec<&str> = today_records.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(ids, expected_ids);
-    }
-
-    #[rstest]
-    fn test_utc_timestamps_match_local_today(mut ctx: TestContext) {
-        // User in JST (+09:00) at 13:59 local = 04:59 UTC
-        // Record played at the same instant, stored as UTC
-        let now = jst_datetime(2026, 3, 18, 13, 59, 0);
-        let utc_record = make_record("utc", "2026-03-18T04:59:00.000Z");
-
-        ctx.store.add_play_records(vec![utc_record]).unwrap();
-
-        let records = ctx.store.get_today_records_impl(now).unwrap();
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].id, "utc");
     }
 
     #[rstest]
