@@ -104,13 +104,15 @@ impl ConfigManager {
         Self { config_path }
     }
 
-    /// Loads config from disk. Returns default config if file doesn't exist.
-    pub fn load(&self) -> Result<AppConfig, ConfigError> {
+    /// Loads config from disk. Returns None if the config file does not exist yet.
+    pub fn load(&self) -> Result<Option<AppConfig>, ConfigError> {
         if !self.config_path.exists() {
-            return Ok(AppConfig::default());
+            return Ok(None);
         }
         let contents = fs::read_to_string(&self.config_path).map_err(ConfigError::ReadFile)?;
-        serde_json::from_str(&contents).map_err(ConfigError::Parse)
+        serde_json::from_str(&contents)
+            .map(Some)
+            .map_err(ConfigError::Parse)
     }
 
     /// Saves config to disk.
@@ -122,16 +124,11 @@ impl ConfigManager {
         fs::write(&self.config_path, contents).map_err(ConfigError::WriteFile)
     }
 
-    /// Validates that all required DB files exist for the given beatoraja_root and player_name,
+    /// Validates that all required DB files exist for the given beatoraja_root,
     /// then saves the config.
-    pub fn validate_and_save(
-        &self,
-        beatoraja_root: &str,
-        player_name: &str,
-    ) -> Result<(), ConfigError> {
-        let mut config = self.load()?;
+    pub fn validate_and_save(&self, beatoraja_root: &str) -> Result<(), ConfigError> {
+        let mut config = self.load()?.unwrap_or_default();
         config.beatoraja_root = beatoraja_root.to_string();
-        config.player_name = player_name.to_string();
 
         for path in config.all_db_paths() {
             if !path.exists() {
@@ -151,7 +148,7 @@ impl ConfigManager {
         background_transparent: Option<bool>,
         font_size: Option<i32>,
     ) -> Result<(), ConfigError> {
-        let mut config = self.load()?;
+        let mut config = self.load()?.unwrap_or_default();
 
         if let Some(rt) = reset_time {
             config.reset_time = rt.to_string();
@@ -194,24 +191,20 @@ mod tests {
     }
 
     /// Creates a fake beatoraja directory structure with the required DB files.
-    fn create_fake_beatoraja_dir(base: &Path) -> PathBuf {
+    /// The player-scoped DB files are placed under `player/<player_name>/`.
+    fn create_fake_beatoraja_dir(base: &Path, player_name: &str) -> PathBuf {
         let root = base.join("beatoraja");
-        fs::create_dir_all(root.join("player").join("default")).unwrap();
-        for file in &[
-            "songdata.db",
-            "player/default/scoredatalog.db",
-            "player/default/score.db",
-            "player/default/scorelog.db",
-        ] {
-            fs::write(root.join(file), "").unwrap();
+        fs::create_dir_all(root.join("player").join(player_name)).unwrap();
+        fs::write(root.join("songdata.db"), "").unwrap();
+        for file in &["scoredatalog.db", "score.db", "scorelog.db"] {
+            fs::write(root.join("player").join(player_name).join(file), "").unwrap();
         }
         root
     }
 
     #[rstest]
-    fn test_load_returns_default_when_file_missing(ctx: TestContext) {
-        let config = ctx.manager.load().unwrap();
-        assert_eq!(config, AppConfig::default());
+    fn test_load_returns_none_when_file_missing(ctx: TestContext) {
+        assert!(ctx.manager.load().unwrap().is_none());
     }
 
     #[rstest]
@@ -224,7 +217,7 @@ mod tests {
             font_size: 16,
         };
         ctx.manager.save(&config).unwrap();
-        let loaded = ctx.manager.load().unwrap();
+        let loaded = ctx.manager.load().unwrap().unwrap();
         assert_eq!(loaded, config);
     }
 
@@ -240,29 +233,26 @@ mod tests {
             }
         "#};
         fs::write(ctx.dir_path().join("config.json"), json).unwrap();
-        let config = ctx.manager.load().unwrap();
+        let config = ctx.manager.load().unwrap().unwrap();
         assert_eq!(config.beatoraja_root, "C:\\beatoraja");
         assert_eq!(config.player_name, "default");
     }
 
     #[rstest]
     fn test_validate_and_save_succeeds_with_valid_paths(ctx: TestContext) {
-        let beatoraja_root = create_fake_beatoraja_dir(ctx.dir_path());
+        let beatoraja_root = create_fake_beatoraja_dir(ctx.dir_path(), "");
         let result = ctx
             .manager
-            .validate_and_save(beatoraja_root.to_str().unwrap(), "default");
+            .validate_and_save(beatoraja_root.to_str().unwrap());
         assert!(result.is_ok());
 
-        let config = ctx.manager.load().unwrap();
+        let config = ctx.manager.load().unwrap().unwrap();
         assert_eq!(config.beatoraja_root, beatoraja_root.to_str().unwrap());
-        assert_eq!(config.player_name, "default");
     }
 
     #[rstest]
     fn test_validate_and_save_fails_with_missing_db(ctx: TestContext) {
-        let result = ctx
-            .manager
-            .validate_and_save("/nonexistent/path", "player1");
+        let result = ctx.manager.validate_and_save("/nonexistent/path");
         assert!(result.is_err());
         match result {
             Err(ConfigError::DbFileNotFound { path }) => {
@@ -283,12 +273,12 @@ mod tests {
         };
         ctx.manager.save(&initial).unwrap();
 
-        let beatoraja_root = create_fake_beatoraja_dir(ctx.dir_path());
+        let beatoraja_root = create_fake_beatoraja_dir(ctx.dir_path(), "");
         ctx.manager
-            .validate_and_save(beatoraja_root.to_str().unwrap(), "default")
+            .validate_and_save(beatoraja_root.to_str().unwrap())
             .unwrap();
 
-        let config = ctx.manager.load().unwrap();
+        let config = ctx.manager.load().unwrap().unwrap();
         assert_eq!(config.reset_time, "07:00");
         assert!(config.background_transparent);
         assert_eq!(config.font_size, 20);
@@ -302,7 +292,7 @@ mod tests {
             .update_settings(Some("06:30"), None, Some(18))
             .unwrap();
 
-        let config = ctx.manager.load().unwrap();
+        let config = ctx.manager.load().unwrap().unwrap();
         assert_eq!(config.reset_time, "06:30");
         assert!(!config.background_transparent); // unchanged
         assert_eq!(config.font_size, 18);

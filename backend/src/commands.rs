@@ -21,7 +21,7 @@ impl From<ConfigError> for CommandError {
 }
 
 #[tauri::command]
-pub fn get_config(state: State<'_, ConfigManagerState>) -> Result<AppConfig, CommandError> {
+pub fn get_config(state: State<'_, ConfigManagerState>) -> Result<Option<AppConfig>, CommandError> {
     let manager = state
         .0
         .lock()
@@ -33,14 +33,13 @@ pub fn get_config(state: State<'_, ConfigManagerState>) -> Result<AppConfig, Com
 pub fn validate_and_save_config(
     state: State<'_, ConfigManagerState>,
     beatoraja_root: String,
-    player_name: String,
 ) -> Result<(), CommandError> {
     let manager = state
         .0
         .lock()
         .map_err(|e| CommandError::Lock(e.to_string()))?;
     manager
-        .validate_and_save(&beatoraja_root, &player_name)
+        .validate_and_save(&beatoraja_root)
         .map_err(Into::into)
 }
 
