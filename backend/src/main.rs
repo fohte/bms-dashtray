@@ -20,12 +20,17 @@ fn main() {
             let app_data_dir = app.path().app_data_dir()?;
 
             let config_path = app_data_dir.join("config.json");
-            app.manage(ConfigManagerState(Mutex::new(ConfigManager::new(
-                config_path,
-            ))));
+            let config_manager = ConfigManager::new(config_path);
+            let reset_time = config_manager
+                .load()
+                .ok()
+                .flatten()
+                .map(|c| c.reset_time)
+                .unwrap_or_else(|| "05:00".to_string());
+            app.manage(ConfigManagerState(Mutex::new(config_manager)));
 
             let history_path = app_data_dir.join("history.json");
-            let mut store = HistoryStore::new(history_path, "05:00");
+            let mut store = HistoryStore::new(history_path, &reset_time);
             if let Err(e) = store.restore() {
                 eprintln!("failed to restore history: {e}");
             }

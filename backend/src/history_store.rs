@@ -69,16 +69,21 @@ fn parse_reset_time(reset_time: &str) -> Result<NaiveTime, StoreError> {
 
 /// Extracts the logical date of a play record given a reset time.
 ///
-/// The `played_at` field is an ISO 8601 timestamp with offset. The logical date
-/// is computed in the timestamp's own timezone, accounting for the reset
-/// boundary: plays before the reset time belong to the previous calendar day.
-fn record_logical_date(played_at: &str, reset_time: NaiveTime) -> Result<NaiveDate, StoreError> {
+/// The `played_at` field is an ISO 8601 timestamp (possibly in UTC). It is
+/// converted to the provided `local_offset` before comparing against the reset
+/// time so that records stored in UTC are evaluated in the user's timezone.
+fn record_logical_date(
+    played_at: &str,
+    reset_time: NaiveTime,
+    local_offset: FixedOffset,
+) -> Result<NaiveDate, StoreError> {
     let dt = DateTime::parse_from_rfc3339(played_at)
         .map_err(|_| StoreError::InvalidTimestamp(played_at.to_string()))?;
-    if dt.time() < reset_time {
-        Ok(dt.date_naive() - chrono::Duration::days(1))
+    let local = dt.with_timezone(&local_offset);
+    if local.time() < reset_time {
+        Ok(local.date_naive() - chrono::Duration::days(1))
     } else {
-        Ok(dt.date_naive())
+        Ok(local.date_naive())
     }
 }
 
@@ -124,14 +129,16 @@ impl HistoryStore {
     ) -> Result<Vec<PlayRecord>, StoreError> {
         let reset_time = parse_reset_time(&self.reset_time)?;
         let today = logical_today(now, reset_time);
+        let offset = *now.offset();
 
         let filtered: Vec<PlayRecord> = self
             .records
             .iter()
             .filter(|r| {
-                record_logical_date(&r.played_at, reset_time)
-                    .map(|d| d == today)
-                    .unwrap_or(false)
+                matches!(
+                    record_logical_date(&r.played_at, reset_time, offset),
+                    Ok(d) if d == today
+                )
             })
             .cloned()
             .collect();
@@ -263,19 +270,59 @@ mod tests {
     }
 
     #[rstest]
-    fn test_get_today_records_filters_by_date(mut ctx: TestContext) {
-        let now = jst_datetime(2026, 3, 18, 14, 0, 0);
-
-        let today_record = make_record("today", "2026-03-18T10:00:00+09:00");
-        let yesterday_record = make_record("yesterday", "2026-03-17T10:00:00+09:00");
-
-        ctx.store
-            .add_play_records(vec![today_record, yesterday_record])
-            .unwrap();
+    #[case::filters_by_date(
+        // now=2026-03-18 14:00 JST, today record + yesterday record
+        jst_datetime(2026, 3, 18, 14, 0, 0),
+        vec![
+            ("today", "2026-03-18T10:00:00+09:00"),
+            ("yesterday", "2026-03-17T10:00:00+09:00"),
+        ],
+        vec!["today"],
+    )]
+    #[case::reset_time_boundary(
+        // At 04:59 JST, logical today = 2026-03-17 (before reset time 05:00)
+        jst_datetime(2026, 3, 18, 4, 59, 0),
+        vec![
+            ("late", "2026-03-17T23:00:00+09:00"),
+            ("next", "2026-03-18T06:00:00+09:00"),
+        ],
+        vec!["late"],
+    )]
+    #[case::early_morning_belongs_to_previous_day(
+        // At 03:30 JST, play at 03:00 belongs to logical date 2026-03-17
+        jst_datetime(2026, 3, 18, 3, 30, 0),
+        vec![("early", "2026-03-18T03:00:00+09:00")],
+        vec!["early"],
+    )]
+    fn test_get_today_records(
+        mut ctx: TestContext,
+        #[case] now: DateTime<FixedOffset>,
+        #[case] input_records: Vec<(&str, &str)>,
+        #[case] expected_ids: Vec<&str>,
+    ) {
+        let records: Vec<PlayRecord> = input_records
+            .into_iter()
+            .map(|(id, played_at)| make_record(id, played_at))
+            .collect();
+        ctx.store.add_play_records(records).unwrap();
 
         let today_records = ctx.store.get_today_records_impl(now).unwrap();
-        assert_eq!(today_records.len(), 1);
-        assert_eq!(today_records[0].id, "today");
+        let ids: Vec<&str> = today_records.iter().map(|r| r.id.as_str()).collect();
+        assert_eq!(ids, expected_ids);
+    }
+
+    #[rstest]
+    fn test_utc_timestamps_match_local_today(mut ctx: TestContext) {
+        // User in JST (+09:00) at 13:59 local = 04:59 UTC
+        // Record played at the same instant, stored as UTC
+        let now = jst_datetime(2026, 3, 18, 13, 59, 0);
+        let utc_record = make_record("utc", "2026-03-18T04:59:00.000Z");
+
+        ctx.store.add_play_records(vec![utc_record]).unwrap();
+
+        let records = ctx.store.get_today_records_impl(now).unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].id, "utc");
     }
 
     #[rstest]
@@ -296,14 +343,7 @@ mod tests {
         let r2 = make_record("r2", "2026-03-18T12:00:00+09:00");
 
         ctx.store.add_play_records(vec![r1, r2]).unwrap();
-
-        // Manually write the file with today's date to simulate persist
-        let file = HistoryFile {
-            date: "2026-03-18".to_string(),
-            records: ctx.store.records.clone(),
-        };
-        let contents = serde_json::to_string_pretty(&file).unwrap();
-        fs::write(ctx.history_path(), &contents).unwrap();
+        ctx.store.persist_impl(now).unwrap();
 
         // Create a new store and restore
         let mut new_store = HistoryStore::new(ctx.history_path(), "05:00");
@@ -347,38 +387,6 @@ mod tests {
         ctx.store.restore_impl(now).unwrap();
 
         assert!(ctx.store.records.is_empty());
-    }
-
-    #[rstest]
-    fn test_reset_time_boundary(mut ctx: TestContext) {
-        // At 04:59 JST, logical today should be 2026-03-17 (before reset time 05:00)
-        let before_reset = jst_datetime(2026, 3, 18, 4, 59, 0);
-
-        // Record played at 2026-03-17 23:00 JST (logical date = 2026-03-17)
-        let late_night_record = make_record("late", "2026-03-17T23:00:00+09:00");
-        // Record played at 2026-03-18 06:00 JST (logical date = 2026-03-18)
-        let next_day_record = make_record("next", "2026-03-18T06:00:00+09:00");
-
-        ctx.store
-            .add_play_records(vec![late_night_record, next_day_record])
-            .unwrap();
-
-        let records = ctx.store.get_today_records_impl(before_reset).unwrap();
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].id, "late");
-    }
-
-    #[rstest]
-    fn test_early_morning_play_belongs_to_previous_day(mut ctx: TestContext) {
-        // Play at 03:00 JST on 2026-03-18 should belong to logical date 2026-03-17
-        let now = jst_datetime(2026, 3, 18, 3, 30, 0);
-
-        let early_record = make_record("early", "2026-03-18T03:00:00+09:00");
-        ctx.store.add_play_records(vec![early_record]).unwrap();
-
-        let records = ctx.store.get_today_records_impl(now).unwrap();
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].id, "early");
     }
 
     #[rstest]
