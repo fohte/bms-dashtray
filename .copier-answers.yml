@@ -13,4 +13,4 @@ subpackages:
     type: rust
 type: base
 use_coverage: true
-use_release_please: false
+use_release_please: true
