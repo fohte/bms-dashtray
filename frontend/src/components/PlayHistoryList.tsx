@@ -72,8 +72,6 @@ const styles = {
     display: 'flex',
     alignItems: 'stretch',
     minHeight: '56px',
-    borderRadius: '8px',
-    overflow: 'hidden',
   },
   lampBar: {
     width: '4px',
@@ -87,6 +85,7 @@ const styles = {
     padding: '10px 12px',
     gap: '12px',
     minWidth: 0,
+    borderRadius: '0 8px 8px 0',
   },
   left: {
     display: 'flex',
