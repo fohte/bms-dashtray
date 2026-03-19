@@ -21,27 +21,28 @@ const CLEAR_LAMP_NAMES: Record<number, string> = {
 }
 
 const CLEAR_LAMP_COLORS: Record<number, string> = {
-  0: '#404040',
-  1: '#000080',
-  2: '#800080',
-  3: '#FF00FF',
-  4: '#40FF40',
-  5: '#00C0F0',
-  6: '#FFFFFF',
-  7: '#88FFFF',
-  8: '#FFFF88',
-  9: '#8888FF',
-  10: '#0000FF',
-}
-
-const CLEAR_LAMP_ALT_COLORS: Record<number, string> = {
-  7: '#FFFFFF',
+  0: '#000000',
+  1: '#E92F0A',
+  2: '#CE01D6',
+  3: '#DDA2DF',
+  4: '#56CA43',
+  5: '#F5C758',
+  6: '#F8F7F5',
+  7: '#EFFD09',
   8: '#FFFFFF',
   9: '#FFFFFF',
   10: '#FFFFFF',
 }
 
-const FLASHING_CLEARS = new Set([7, 8, 9, 10])
+const CLEAR_LAMP_ALT_COLORS: Record<number, string> = {
+  1: '#0F0300',
+  7: '#FD0909',
+  8: '#09FAFD',
+  9: '#3FFF4D',
+  10: '#FFEB42',
+}
+
+const FLASHING_CLEARS = new Set([1, 7, 8, 9, 10])
 
 const DIFFICULTY_NAMES: Record<number, string> = {
   0: 'BEGINNER',
@@ -239,8 +240,9 @@ function LampBar({
   previousColor: string | null
   flashing: boolean
 }) {
+  const cycleMs = clear === 1 ? 50 : 100
   const flashAnimation = flashing
-    ? `lampFlash${clear} 200ms step-end infinite`
+    ? `lampFlash${clear} ${cycleMs}ms step-end infinite`
     : undefined
 
   if (previousColor != null && previousColor !== currentColor) {
