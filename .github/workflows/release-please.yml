@@ -63,6 +63,7 @@ jobs:
 
       - name: Add Rust target (macOS cross-compile)
         if: matrix.platform == 'macos-latest'
+        working-directory: backend
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
       - uses: pnpm/action-setup@v4
