@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { PlayHistoryListContainer } from '@/components/PlayHistoryListContainer'
 import { SettingsScreenContainer } from '@/components/SettingsScreenContainer'
 import { SetupScreenContainer } from '@/components/SetupScreenContainer'
 import { tauriApi } from '@/tauri-api'
@@ -95,8 +96,6 @@ export const App = () => {
         flexDirection: 'column',
         backgroundColor: '#000000',
         color: '#ffffff',
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: '14px',
       }}
     >
       <div
@@ -110,6 +109,7 @@ export const App = () => {
       >
         <span
           style={{
+            fontFamily: "'JetBrains Mono', monospace",
             fontWeight: 700,
             letterSpacing: '2px',
           }}
@@ -132,16 +132,7 @@ export const App = () => {
           &#9881;
         </button>
       </div>
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        BMS DASHTRAY
-      </div>
+      <PlayHistoryListContainer api={tauriApi} />
     </div>
   )
 }

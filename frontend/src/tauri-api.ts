@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 
-import type { AppConfig } from '@/types'
+import type { AppConfig, PlayRecord, ScoresUpdatedPayload } from '@/types'
 
 export interface TauriApi {
   getConfig: () => Promise<AppConfig | null>
@@ -13,6 +14,10 @@ export interface TauriApi {
   }) => Promise<void>
   resetHistory: () => Promise<void>
   openFolderDialog: () => Promise<string | null>
+  getTodayRecords: () => Promise<PlayRecord[]>
+  listenScoresUpdated: (
+    callback: (payload: ScoresUpdatedPayload) => void,
+  ) => Promise<UnlistenFn>
 }
 
 export const tauriApi: TauriApi = {
@@ -22,4 +27,9 @@ export const tauriApi: TauriApi = {
   updateSettings: (settings) => invoke<void>('update_settings', settings),
   resetHistory: () => invoke<void>('reset_history'),
   openFolderDialog: () => open({ directory: true }),
+  getTodayRecords: () => invoke<PlayRecord[]>('get_today_records'),
+  listenScoresUpdated: (callback) =>
+    listen<ScoresUpdatedPayload>('scores-updated', (event) => {
+      callback(event.payload)
+    }),
 }

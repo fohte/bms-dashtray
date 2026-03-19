@@ -21,6 +21,8 @@ function createMockApi(overrides: Partial<TauriApi> = {}): TauriApi {
     updateSettings: vi.fn().mockResolvedValue(undefined),
     resetHistory: vi.fn().mockResolvedValue(undefined),
     openFolderDialog: vi.fn().mockResolvedValue(null),
+    getTodayRecords: vi.fn().mockResolvedValue([]),
+    listenScoresUpdated: vi.fn().mockResolvedValue(vi.fn()),
     ...overrides,
   }
 }
