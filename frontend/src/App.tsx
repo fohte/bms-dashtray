@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { PlayHistoryListContainer } from '@/components/PlayHistoryListContainer'
 import { SetupScreenContainer } from '@/components/SetupScreenContainer'
 import { tauriApi } from '@/tauri-api'
 
@@ -43,21 +44,15 @@ export const App = () => {
     )
   }
 
-  // Main screen placeholder
   return (
     <div
       style={{
         minHeight: '100vh',
         backgroundColor: '#000000',
         color: '#ffffff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: '14px',
       }}
     >
-      BMS DASHTRAY
+      <PlayHistoryListContainer api={tauriApi} />
     </div>
   )
 }
