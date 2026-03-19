@@ -22,6 +22,7 @@ export interface PlayRecord {
   combo: number
   playedAt: string
   title: string
+  subtitle: string
   artist: string
   level: number
   difficulty: number

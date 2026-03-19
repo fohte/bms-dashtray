@@ -140,9 +140,9 @@ impl DiffDetector {
 
             let metadata = read_song_metadata(db_paths.songdata, &play.sha256)?;
 
-            let (title, artist, level, difficulty) = match metadata {
-                Some(m) => (m.title, m.artist, m.level, m.difficulty),
-                None => (String::new(), String::new(), 0, 0),
+            let (title, subtitle, artist, level, difficulty) = match metadata {
+                Some(m) => (m.title, m.subtitle, m.artist, m.level, m.difficulty),
+                None => (String::new(), String::new(), String::new(), 0, 0),
             };
 
             records.push(PlayRecord {
@@ -156,6 +156,7 @@ impl DiffDetector {
                 combo: play.combo,
                 played_at: play.played_at.clone(),
                 title,
+                subtitle,
                 artist,
                 level,
                 difficulty,

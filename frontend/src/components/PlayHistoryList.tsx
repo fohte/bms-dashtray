@@ -44,24 +44,12 @@ const CLEAR_LAMP_ALT_COLORS: Record<number, string> = {
 
 const FLASHING_CLEARS = new Set([1, 7, 8, 9, 10])
 
-const DIFFICULTY_NAMES: Record<number, string> = {
-  0: 'BEGINNER',
-  1: 'NORMAL',
-  2: 'HYPER',
-  3: 'ANOTHER',
-  4: 'INSANE',
-}
-
 function getClearLampName(clear: number): string {
   return CLEAR_LAMP_NAMES[clear] ?? `Unknown(${String(clear)})`
 }
 
 function getClearLampColor(clear: number): string {
   return CLEAR_LAMP_COLORS[clear] ?? '#555555'
-}
-
-function getDifficultyName(difficulty: number): string | null {
-  return DIFFICULTY_NAMES[difficulty] ?? null
 }
 
 function formatDiff(
@@ -148,12 +136,13 @@ const styles = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
-  difficultyName: {
+  subtitle: {
     fontFamily: "'JetBrains Mono', monospace",
     fontSize: '9px',
     fontWeight: 500,
     color: '#475569',
     flexShrink: 0,
+    whiteSpace: 'nowrap',
   },
   clearRow: {
     display: 'flex',
@@ -295,7 +284,6 @@ function PlayHistoryEntry({
   const lampColor = getClearLampColor(record.clear)
   const clearName = getClearLampName(record.clear)
   const bgColor = index % 2 === 0 ? '#111111' : '#0A0A0A'
-  const diffName = getDifficultyName(record.difficulty)
 
   const clearUpdated =
     record.previousClear != null && record.clear > record.previousClear
@@ -320,8 +308,8 @@ function PlayHistoryEntry({
         <div style={styles.left as CSSProperties}>
           <div style={styles.titleRow as CSSProperties}>
             <span style={styles.title as CSSProperties}>{record.title}</span>
-            {diffName != null && (
-              <span style={styles.difficultyName}>{diffName}</span>
+            {record.subtitle !== '' && (
+              <span style={styles.subtitle}>{record.subtitle}</span>
             )}
           </div>
           <div style={styles.clearRow}>
