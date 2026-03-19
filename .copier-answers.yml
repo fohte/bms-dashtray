@@ -14,3 +14,6 @@ subpackages:
 type: base
 use_coverage: true
 use_release_please: true
+release_type: simple
+auto_merge_release_pr: false
+release_binary: false
