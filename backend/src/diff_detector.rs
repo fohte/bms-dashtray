@@ -455,6 +455,18 @@ mod tests {
         .expect("insert scorelog");
     }
 
+    fn assert_previous_best(
+        results: &[PlayRecord],
+        expected_clear: Option<i32>,
+        expected_ex_score: Option<i32>,
+        expected_min_bp: Option<i32>,
+    ) {
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].previous_clear, expected_clear);
+        assert_eq!(results[0].previous_ex_score, expected_ex_score);
+        assert_eq!(results[0].previous_min_bp, expected_min_bp);
+    }
+
     fn insert_songdata(conn: &Connection, sha256: &str, title: &str, artist: &str) {
         conn.execute(
             "INSERT INTO song (md5, sha256, title, artist, level, difficulty, notes, mode, path) \
@@ -605,10 +617,7 @@ mod tests {
             .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
             .unwrap();
 
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].previous_clear, expected.0);
-        assert_eq!(results[0].previous_ex_score, expected.1);
-        assert_eq!(results[0].previous_min_bp, expected.2);
+        assert_previous_best(&results, expected.0, expected.1, expected.2);
     }
 
     #[rstest]
@@ -640,11 +649,8 @@ mod tests {
             .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
             .unwrap();
 
-        assert_eq!(results.len(), 1);
         // Cache should reflect the updated best (from the first play: clear=6, ex_score=440, min_bp=15)
-        assert_eq!(results[0].previous_clear, Some(6));
-        assert_eq!(results[0].previous_ex_score, Some(440));
-        assert_eq!(results[0].previous_min_bp, Some(15));
+        assert_previous_best(&results, Some(6), Some(440), Some(15));
     }
 
     #[rstest]
@@ -732,9 +738,6 @@ mod tests {
             .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
             .unwrap();
 
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].previous_clear, Some(7));
-        assert_eq!(results[0].previous_ex_score, Some(440));
-        assert_eq!(results[0].previous_min_bp, Some(10));
+        assert_previous_best(&results, Some(7), Some(440), Some(10));
     }
 }
