@@ -70,22 +70,15 @@ const styles = {
   },
   entry: {
     display: 'flex',
-    alignItems: 'stretch',
-    minHeight: '56px',
-  },
-  lampBar: {
-    width: '4px',
-    flexShrink: 0,
-  },
-  content: {
-    flex: 1,
-    display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: '56px',
+    borderRadius: '8px',
     padding: '10px 12px',
     gap: '12px',
     minWidth: 0,
-    borderRadius: '0 8px 8px 0',
+    borderLeftWidth: '4px',
+    borderLeftStyle: 'solid',
   },
   left: {
     display: 'flex',
@@ -212,44 +205,47 @@ function PlayHistoryEntry({
   const bpDiff = formatDiff(record.minBp, record.previousMinBp, true)
 
   return (
-    <div style={styles.entry}>
-      <div style={{ ...styles.lampBar, backgroundColor: lampColor }} />
-      <div style={{ ...styles.content, backgroundColor: bgColor }}>
-        <div style={styles.left as CSSProperties}>
-          <div style={styles.titleRow as CSSProperties}>
-            <span style={styles.title as CSSProperties}>{record.title}</span>
-            {clearUpdated && <span style={styles.upBadge}>UP</span>}
-          </div>
-          <div style={styles.clearRow}>
-            <span style={styles.level}>Lv.{record.level}</span>
-            <span style={{ ...styles.clearName, color: lampColor }}>
-              {clearName}
-            </span>
-            {clearUpdated && (
-              <span style={styles.previousClear}>
-                {'< '}
-                {getClearLampName(record.previousClear!)}
-              </span>
-            )}
-          </div>
+    <div
+      style={{
+        ...styles.entry,
+        borderLeftColor: lampColor,
+        backgroundColor: bgColor,
+      }}
+    >
+      <div style={styles.left as CSSProperties}>
+        <div style={styles.titleRow as CSSProperties}>
+          <span style={styles.title as CSSProperties}>{record.title}</span>
+          {clearUpdated && <span style={styles.upBadge}>UP</span>}
         </div>
-        <div style={styles.right as CSSProperties}>
-          <div style={styles.scoreRow}>
-            <span style={styles.scoreValue}>{record.exScore}</span>
-            {exScoreDiff != null && (
-              <span style={{ ...styles.scoreDiff, color: exScoreDiff.color }}>
-                {exScoreDiff.text}
-              </span>
-            )}
-          </div>
-          <div style={styles.bpRow}>
-            <span style={styles.bpValue}>{record.minBp} bp</span>
-            {bpDiff != null && (
-              <span style={{ ...styles.bpDiff, color: bpDiff.color }}>
-                {bpDiff.text}
-              </span>
-            )}
-          </div>
+        <div style={styles.clearRow}>
+          <span style={styles.level}>Lv.{record.level}</span>
+          <span style={{ ...styles.clearName, color: lampColor }}>
+            {clearName}
+          </span>
+          {clearUpdated && (
+            <span style={styles.previousClear}>
+              {'< '}
+              {getClearLampName(record.previousClear!)}
+            </span>
+          )}
+        </div>
+      </div>
+      <div style={styles.right as CSSProperties}>
+        <div style={styles.scoreRow}>
+          <span style={styles.scoreValue}>{record.exScore}</span>
+          {exScoreDiff != null && (
+            <span style={{ ...styles.scoreDiff, color: exScoreDiff.color }}>
+              {exScoreDiff.text}
+            </span>
+          )}
+        </div>
+        <div style={styles.bpRow}>
+          <span style={styles.bpValue}>{record.minBp} bp</span>
+          {bpDiff != null && (
+            <span style={{ ...styles.bpDiff, color: bpDiff.color }}>
+              {bpDiff.text}
+            </span>
+          )}
         </div>
       </div>
     </div>
