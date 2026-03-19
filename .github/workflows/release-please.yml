@@ -57,7 +57,9 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      - run: rustup show
+      - name: Install Rust toolchain
+        working-directory: backend
+        run: rustup show
 
       - name: Add Rust target (macOS cross-compile)
         if: matrix.platform == 'macos-latest'
