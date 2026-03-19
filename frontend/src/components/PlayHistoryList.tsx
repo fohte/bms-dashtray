@@ -21,22 +21,22 @@ const CLEAR_LAMP_NAMES: Record<number, string> = {
 }
 
 const CLEAR_LAMP_COLORS: Record<number, string> = {
-  0: '#555555',
-  1: '#EF4444',
-  2: '#A78BFA',
-  3: '#C4B5FD',
-  4: '#22C55E',
-  5: '#3B82F6',
-  6: '#F97316',
-  7: '#FFFFFF',
-  8: '#FBBF24',
-  9: '#FBBF24',
-  10: '#FBBF24',
+  0: '#404040',
+  1: '#000080',
+  2: '#800080',
+  3: '#FF00FF',
+  4: '#40FF40',
+  5: '#00C0F0',
+  6: '#FFFFFF',
+  7: '#88FFFF',
+  8: '#FFFF88',
+  9: '#8888FF',
+  10: '#0000FF',
 }
 
 const CLEAR_LAMP_ALT_COLORS: Record<number, string> = {
-  7: '#EF4444',
-  8: '#3B82F6',
+  7: '#FFFFFF',
+  8: '#FFFFFF',
   9: '#FFFFFF',
   10: '#FFFFFF',
 }
