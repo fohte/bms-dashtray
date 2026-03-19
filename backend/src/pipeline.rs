@@ -150,12 +150,26 @@ mod tests {
     use tempfile::TempDir;
 
     /// Returns a UNIX timestamp in milliseconds for "today" at the given hour (in local time),
-    /// so that `get_today_records()` will include this record.
+    /// using the logical date (accounting for the 05:00 reset time) so that
+    /// `get_today_records()` will include this record even when tests run between midnight and 05:00.
     fn today_millis(hour: u32) -> i64 {
-        use chrono::{Datelike as _, Local, TimeZone as _};
-        let today = Local::now().date_naive();
+        use chrono::{Datelike as _, Local, NaiveTime, TimeZone as _};
+        let now = Local::now();
+        let reset_time = NaiveTime::from_hms_opt(5, 0, 0).unwrap_or_default();
+        let logical_date = if now.time() < reset_time {
+            now.date_naive() - chrono::Duration::days(1)
+        } else {
+            now.date_naive()
+        };
         let dt = Local
-            .with_ymd_and_hms(today.year(), today.month(), today.day(), hour, 0, 0)
+            .with_ymd_and_hms(
+                logical_date.year(),
+                logical_date.month(),
+                logical_date.day(),
+                hour,
+                0,
+                0,
+            )
             .single();
         match dt {
             Some(d) => d.timestamp_millis(),
