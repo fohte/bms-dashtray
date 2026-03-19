@@ -80,6 +80,14 @@ struct E2EContext {
     history_path: std::path::PathBuf,
 }
 
+/// Context for tests that manually drive pipeline cycles (without file watcher).
+struct PipelineCycleContext {
+    e2e: E2EContext,
+    store: HistoryStore,
+    emitter: MockEmitter,
+    detector: DiffDetector,
+}
+
 fn create_db_schema(path: &std::path::Path, schema: &str) {
     let conn = Connection::open(path).unwrap_or_else(|e| {
         panic!("failed to open {}: {e}", path.display());
@@ -268,7 +276,6 @@ fn run_pipeline_cycle(
     store: &mut HistoryStore,
     emitter: &dyn EventEmitter,
     config: &AppConfig,
-    restored_keys: &HashSet<(String, i32, String)>,
 ) {
     let db_paths = DbPaths {
         scoredatalog: &config.scoredatalog_db_path(),
@@ -277,8 +284,9 @@ fn run_pipeline_cycle(
         songdata: &config.songdata_db_path(),
     };
 
+    let empty_keys: HashSet<(String, i32, String)> = HashSet::new();
     let new_records = detector
-        .on_db_changed(&db_paths, restored_keys)
+        .on_db_changed(&db_paths, &empty_keys)
         .unwrap_or_else(|e| {
             panic!("on_db_changed failed: {e}");
         });
@@ -307,6 +315,13 @@ fn run_pipeline_cycle(
     });
 }
 
+/// Asserts that the sorted titles of the given records match the expected titles.
+fn assert_record_titles(records: &[PlayRecord], expected: &[&str]) {
+    let mut titles: Vec<&str> = records.iter().map(|r| r.title.as_str()).collect();
+    titles.sort();
+    assert_eq!(titles, expected);
+}
+
 #[fixture]
 fn e2e_ctx() -> E2EContext {
     let dir = tempfile::tempdir().unwrap_or_else(|e| {
@@ -329,6 +344,25 @@ fn e2e_ctx() -> E2EContext {
         _dir: dir,
         config,
         history_path,
+    }
+}
+
+#[fixture]
+fn pipeline_ctx(e2e_ctx: E2EContext) -> PipelineCycleContext {
+    let store = HistoryStore::new(e2e_ctx.history_path.clone(), &e2e_ctx.config.reset_time);
+    let emitter = MockEmitter::new();
+    let mut detector = DiffDetector::new();
+    detector
+        .load_best_scores(&e2e_ctx.config.score_db_path())
+        .unwrap_or_else(|e| {
+            panic!("load_best_scores failed: {e}");
+        });
+
+    PipelineCycleContext {
+        e2e: e2e_ctx,
+        store,
+        emitter,
+        detector,
     }
 }
 
@@ -371,13 +405,7 @@ fn test_initial_startup_detects_existing_plays(e2e_ctx: E2EContext) {
         "expected 2 records from initial read"
     );
 
-    let mut titles: Vec<&str> = payloads[0]
-        .records
-        .iter()
-        .map(|r| r.title.as_str())
-        .collect();
-    titles.sort();
-    assert_eq!(titles, vec!["FREEDOM DiVE", "Quaver"]);
+    assert_record_titles(&payloads[0].records, &["FREEDOM DiVE", "Quaver"]);
 
     // Verify: store persisted the records
     let store_guard = store.lock().unwrap_or_else(|e| {
@@ -396,72 +424,59 @@ fn test_initial_startup_detects_existing_plays(e2e_ctx: E2EContext) {
 // ---------------------------------------------------------------------------
 
 #[rstest]
-fn test_realtime_update_on_db_change(e2e_ctx: E2EContext) {
-    // Start with one existing play
-    insert_scoredatalog(&e2e_ctx.config, "song_a", 0, 5, today_millis(10));
-    insert_songdata(&e2e_ctx.config, "song_a", "Quaver", 10, 3);
+fn test_realtime_update_on_db_change(mut pipeline_ctx: PipelineCycleContext) {
+    let ctx = &mut pipeline_ctx;
 
-    let mut store = HistoryStore::new(e2e_ctx.history_path.clone(), &e2e_ctx.config.reset_time);
-    let emitter = MockEmitter::new();
-    let mut detector = DiffDetector::new();
-    detector
-        .load_best_scores(&e2e_ctx.config.score_db_path())
-        .unwrap_or_else(|e| {
-            panic!("load_best_scores failed: {e}");
-        });
+    // Start with one existing play
+    insert_scoredatalog(&ctx.e2e.config, "song_a", 0, 5, today_millis(10));
+    insert_songdata(&ctx.e2e.config, "song_a", "Quaver", 10, 3);
 
     // Cycle 1: initial read picks up existing play
-    let restored_keys = HashSet::new();
     run_pipeline_cycle(
-        &mut detector,
-        &mut store,
-        &emitter,
-        &e2e_ctx.config,
-        &restored_keys,
+        &mut ctx.detector,
+        &mut ctx.store,
+        &ctx.emitter,
+        &ctx.e2e.config,
     );
 
-    let payloads = emitter.payloads();
+    let payloads = ctx.emitter.payloads();
     assert_eq!(payloads.len(), 1);
     assert_eq!(payloads[0].records.len(), 1);
     assert_eq!(payloads[0].records[0].title, "Quaver");
 
     // Simulate a new play being added to the DB (beatoraja writes new data)
-    insert_scoredatalog(&e2e_ctx.config, "song_b", 0, 7, today_millis(12));
-    insert_songdata(&e2e_ctx.config, "song_b", "FREEDOM DiVE", 12, 4);
+    insert_scoredatalog(&ctx.e2e.config, "song_b", 0, 7, today_millis(12));
+    insert_songdata(&ctx.e2e.config, "song_b", "FREEDOM DiVE", 12, 4);
 
     // Cycle 2: detects the new play
     run_pipeline_cycle(
-        &mut detector,
-        &mut store,
-        &emitter,
-        &e2e_ctx.config,
-        &restored_keys,
+        &mut ctx.detector,
+        &mut ctx.store,
+        &ctx.emitter,
+        &ctx.e2e.config,
     );
 
-    let payloads = emitter.payloads();
+    let payloads = ctx.emitter.payloads();
     assert_eq!(payloads.len(), 2, "expected 2 emissions after second cycle");
 
     // The second emission should contain ALL today's records (cumulative)
     let second = &payloads[1];
     assert_eq!(second.records.len(), 2, "expected 2 cumulative records");
 
-    let mut titles: Vec<&str> = second.records.iter().map(|r| r.title.as_str()).collect();
-    titles.sort();
-    assert_eq!(titles, vec!["FREEDOM DiVE", "Quaver"]);
+    assert_record_titles(&second.records, &["FREEDOM DiVE", "Quaver"]);
 
     // Verify: same chart replayed (updated played_at) is detected
-    insert_scoredatalog(&e2e_ctx.config, "song_a", 0, 6, today_millis(14));
+    insert_scoredatalog(&ctx.e2e.config, "song_a", 0, 6, today_millis(14));
 
     // Cycle 3: detects the replay of song_a
     run_pipeline_cycle(
-        &mut detector,
-        &mut store,
-        &emitter,
-        &e2e_ctx.config,
-        &restored_keys,
+        &mut ctx.detector,
+        &mut ctx.store,
+        &ctx.emitter,
+        &ctx.e2e.config,
     );
 
-    let payloads = emitter.payloads();
+    let payloads = ctx.emitter.payloads();
     assert_eq!(payloads.len(), 3);
 
     // Now store should have 3 records total (song_a played twice + song_b once)
@@ -530,9 +545,7 @@ fn test_restart_restores_todays_history(e2e_ctx: E2EContext) {
         "should restore 2 records from first session"
     );
 
-    let mut titles: Vec<&str> = today.iter().map(|r| r.title.as_str()).collect();
-    titles.sort();
-    assert_eq!(titles, vec!["FREEDOM DiVE", "Quaver"]);
+    assert_record_titles(&today, &["FREEDOM DiVE", "Quaver"]);
 
     // Start pipeline again - should NOT duplicate the restored records
     let store = Arc::new(Mutex::new(restored_store));
@@ -568,49 +581,40 @@ fn test_restart_restores_todays_history(e2e_ctx: E2EContext) {
 // ---------------------------------------------------------------------------
 
 #[rstest]
-fn test_manual_reset_clears_history(e2e_ctx: E2EContext) {
+fn test_manual_reset_clears_history(mut pipeline_ctx: PipelineCycleContext) {
+    let ctx = &mut pipeline_ctx;
+
     // Build up some history
-    insert_scoredatalog(&e2e_ctx.config, "song_a", 0, 6, today_millis(10));
-    insert_songdata(&e2e_ctx.config, "song_a", "FREEDOM DiVE", 12, 4);
+    insert_scoredatalog(&ctx.e2e.config, "song_a", 0, 6, today_millis(10));
+    insert_songdata(&ctx.e2e.config, "song_a", "FREEDOM DiVE", 12, 4);
 
-    let mut store = HistoryStore::new(e2e_ctx.history_path.clone(), &e2e_ctx.config.reset_time);
-    let emitter = MockEmitter::new();
-    let mut detector = DiffDetector::new();
-    detector
-        .load_best_scores(&e2e_ctx.config.score_db_path())
-        .unwrap_or_else(|e| {
-            panic!("load_best_scores failed: {e}");
-        });
-
-    let restored_keys = HashSet::new();
     run_pipeline_cycle(
-        &mut detector,
-        &mut store,
-        &emitter,
-        &e2e_ctx.config,
-        &restored_keys,
+        &mut ctx.detector,
+        &mut ctx.store,
+        &ctx.emitter,
+        &ctx.e2e.config,
     );
 
     // Verify we have 1 record
-    let today = store.get_today_records().unwrap_or_else(|e| {
+    let today = ctx.store.get_today_records().unwrap_or_else(|e| {
         panic!("get_today_records failed: {e}");
     });
     assert_eq!(today.len(), 1);
 
     // User triggers manual reset
-    store.reset().unwrap_or_else(|e| {
+    ctx.store.reset().unwrap_or_else(|e| {
         panic!("reset failed: {e}");
     });
 
     // Verify: all records cleared
-    let today = store.get_today_records().unwrap_or_else(|e| {
+    let today = ctx.store.get_today_records().unwrap_or_else(|e| {
         panic!("get_today_records failed: {e}");
     });
     assert!(today.is_empty(), "records should be empty after reset");
 
     // Verify: persistence file reflects the reset
     let mut restored_store =
-        HistoryStore::new(e2e_ctx.history_path.clone(), &e2e_ctx.config.reset_time);
+        HistoryStore::new(ctx.e2e.history_path.clone(), &ctx.e2e.config.reset_time);
     restored_store.restore().unwrap_or_else(|e| {
         panic!("restore after reset failed: {e}");
     });
@@ -623,18 +627,17 @@ fn test_manual_reset_clears_history(e2e_ctx: E2EContext) {
     );
 
     // Verify: new plays after reset are still detected
-    insert_scoredatalog(&e2e_ctx.config, "song_b", 0, 4, today_millis(14));
-    insert_songdata(&e2e_ctx.config, "song_b", "Quaver", 10, 3);
+    insert_scoredatalog(&ctx.e2e.config, "song_b", 0, 4, today_millis(14));
+    insert_songdata(&ctx.e2e.config, "song_b", "Quaver", 10, 3);
 
     run_pipeline_cycle(
-        &mut detector,
-        &mut store,
-        &emitter,
-        &e2e_ctx.config,
-        &restored_keys,
+        &mut ctx.detector,
+        &mut ctx.store,
+        &ctx.emitter,
+        &ctx.e2e.config,
     );
 
-    let today = store.get_today_records().unwrap_or_else(|e| {
+    let today = ctx.store.get_today_records().unwrap_or_else(|e| {
         panic!("get_today_records failed: {e}");
     });
     assert_eq!(today.len(), 1, "should detect new play after reset");
@@ -648,34 +651,25 @@ fn test_manual_reset_clears_history(e2e_ctx: E2EContext) {
 // ---------------------------------------------------------------------------
 
 #[rstest]
-fn test_level_distribution_data(e2e_ctx: E2EContext) {
+fn test_level_distribution_data(mut pipeline_ctx: PipelineCycleContext) {
+    let ctx = &mut pipeline_ctx;
+
     // Insert plays at different difficulty levels
-    insert_scoredatalog(&e2e_ctx.config, "song_lv10", 0, 6, today_millis(10));
-    insert_scoredatalog(&e2e_ctx.config, "song_lv12", 0, 5, today_millis(11));
-    insert_scoredatalog(&e2e_ctx.config, "song_lv12b", 0, 7, today_millis(12));
-    insert_songdata(&e2e_ctx.config, "song_lv10", "Easy Song", 10, 3);
-    insert_songdata(&e2e_ctx.config, "song_lv12", "Hard Song A", 12, 4);
-    insert_songdata(&e2e_ctx.config, "song_lv12b", "Hard Song B", 12, 4);
+    insert_scoredatalog(&ctx.e2e.config, "song_lv10", 0, 6, today_millis(10));
+    insert_scoredatalog(&ctx.e2e.config, "song_lv12", 0, 5, today_millis(11));
+    insert_scoredatalog(&ctx.e2e.config, "song_lv12b", 0, 7, today_millis(12));
+    insert_songdata(&ctx.e2e.config, "song_lv10", "Easy Song", 10, 3);
+    insert_songdata(&ctx.e2e.config, "song_lv12", "Hard Song A", 12, 4);
+    insert_songdata(&ctx.e2e.config, "song_lv12b", "Hard Song B", 12, 4);
 
-    let mut store = HistoryStore::new(e2e_ctx.history_path.clone(), &e2e_ctx.config.reset_time);
-    let emitter = MockEmitter::new();
-    let mut detector = DiffDetector::new();
-    detector
-        .load_best_scores(&e2e_ctx.config.score_db_path())
-        .unwrap_or_else(|e| {
-            panic!("load_best_scores failed: {e}");
-        });
-
-    let restored_keys = HashSet::new();
     run_pipeline_cycle(
-        &mut detector,
-        &mut store,
-        &emitter,
-        &e2e_ctx.config,
-        &restored_keys,
+        &mut ctx.detector,
+        &mut ctx.store,
+        &ctx.emitter,
+        &ctx.e2e.config,
     );
 
-    let today = store.get_today_records().unwrap_or_else(|e| {
+    let today = ctx.store.get_today_records().unwrap_or_else(|e| {
         panic!("get_today_records failed: {e}");
     });
     assert_eq!(today.len(), 3);
@@ -698,7 +692,7 @@ fn test_level_distribution_data(e2e_ctx: E2EContext) {
 
 #[rstest]
 fn test_clear_lamp_update_tracking(e2e_ctx: E2EContext) {
-    // Set up initial best score in score.db
+    // Set up initial best score in score.db BEFORE loading best scores
     insert_score(&e2e_ctx.config, "song_a", 0, 5, 20);
     insert_songdata(&e2e_ctx.config, "song_a", "FREEDOM DiVE", 12, 4);
 
@@ -714,14 +708,7 @@ fn test_clear_lamp_update_tracking(e2e_ctx: E2EContext) {
             panic!("load_best_scores failed: {e}");
         });
 
-    let restored_keys = HashSet::new();
-    run_pipeline_cycle(
-        &mut detector,
-        &mut store,
-        &emitter,
-        &e2e_ctx.config,
-        &restored_keys,
-    );
+    run_pipeline_cycle(&mut detector, &mut store, &emitter, &e2e_ctx.config);
 
     let today = store.get_today_records().unwrap_or_else(|e| {
         panic!("get_today_records failed: {e}");
