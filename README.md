@@ -44,8 +44,11 @@ Installers are output to `backend/target/release/bundle/`.
 Run tests:
 
 ```sh
-(cd backend && cargo test)
-(cd frontend && pnpm run test)
+cd backend && cargo test
+```
+
+```sh
+cd frontend && pnpm run test
 ```
 
 Browse UI components in Storybook:
