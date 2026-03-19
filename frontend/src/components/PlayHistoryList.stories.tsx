@@ -26,6 +26,7 @@ function makeRecord(overrides: Partial<PlayRecord> = {}): PlayRecord {
     combo: 500,
     playedAt: '2026-03-20T15:30:00+09:00',
     title: 'Example Song',
+    subtitle: '',
     artist: 'Example Artist',
     level: 12,
     difficulty: 1,
@@ -56,7 +57,7 @@ export const NormalPlay: Story = {
         previousMinBp: 28,
       }),
       makeRecord({
-        title: 'Angelic Jelly',
+        title: 'Groundbreaking',
         level: 11,
         clear: 6,
         exScore: 2156,
@@ -66,7 +67,7 @@ export const NormalPlay: Story = {
         previousMinBp: 12,
       }),
       makeRecord({
-        title: 'MENDES',
+        title: 'L9',
         level: 12,
         clear: 4,
         exScore: 1456,
@@ -93,7 +94,7 @@ export const ClearLampUpdate: Story = {
         previousMinBp: 28,
       }),
       makeRecord({
-        title: 'Angelic Jelly',
+        title: 'Groundbreaking',
         level: 11,
         clear: 7,
         exScore: 2200,
@@ -210,11 +211,66 @@ export const AllClearLamps: Story = {
   },
 }
 
+export const LongTitles: Story = {
+  args: {
+    records: [
+      makeRecord({
+        title: '%E3%83%96%E3%83%B3%E3%82%BF%E3%83%B3 ～Falling in "B" mix～',
+        subtitle: '(EXPERT)',
+        level: 12,
+        difficulty: 3,
+        clear: 7,
+        exScore: 2456,
+        minBp: 8,
+        previousClear: 6,
+        previousExScore: 2300,
+        previousMinBp: 15,
+      }),
+      makeRecord({
+        title: 'Ascension to Heaven -Long Version-',
+        subtitle: '-ANOTHER-',
+        level: 12,
+        difficulty: 4,
+        clear: 5,
+        exScore: 1834,
+        minBp: 23,
+        previousClear: 5,
+        previousExScore: 1790,
+        previousMinBp: 28,
+      }),
+      makeRecord({
+        title: 'FREEDOM DiVE',
+        subtitle: '',
+        level: 11,
+        difficulty: 3,
+        clear: 8,
+        exScore: 3102,
+        minBp: 0,
+        previousClear: 7,
+        previousExScore: 2900,
+        previousMinBp: 3,
+      }),
+      makeRecord({
+        title: 'Pandora',
+        subtitle: '[MANIAC]',
+        level: 12,
+        difficulty: 3,
+        clear: 1,
+        exScore: 456,
+        minBp: 120,
+        previousClear: null,
+        previousExScore: null,
+        previousMinBp: null,
+      }),
+    ],
+  },
+}
+
 export const ManyEntries: Story = {
   args: {
     records: Array.from({ length: 20 }, (_, i) =>
       makeRecord({
-        title: `Song ${String(20 - i).padStart(2, '0')} - ${['FREEDOM DiVE', 'Angelic Jelly', 'MENDES', 'Clione', 'Almagest'][i % 5]}`,
+        title: `Song ${String(20 - i).padStart(2, '0')} - ${['FREEDOM DiVE', 'Groundbreaking', 'L9', 'Pandora', 'Ascension to Heaven'][i % 5]}`,
         level: 8 + (i % 5),
         clear: 1 + (i % 7),
         exScore: 800 + i * 50,
