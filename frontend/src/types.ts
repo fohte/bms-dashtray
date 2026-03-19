@@ -30,4 +30,9 @@ export interface PlayRecord {
   previousMinBp: number | null
 }
 
+export interface ScoresUpdatedPayload {
+  records: PlayRecord[]
+  updatedAt: string
+}
+
 export type FilterType = 'all' | 'updated'
