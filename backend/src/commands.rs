@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use tauri::State;
 
@@ -6,7 +6,7 @@ use crate::config::{AppConfig, ConfigError, ConfigManager};
 use crate::history_store::{HistoryStore, PlayRecord, StoreError};
 
 pub struct ConfigManagerState(pub Mutex<ConfigManager>);
-pub struct HistoryStoreState(pub Mutex<HistoryStore>);
+pub struct HistoryStoreState(pub Arc<Mutex<HistoryStore>>);
 
 #[derive(Debug)]
 pub enum CommandError {
