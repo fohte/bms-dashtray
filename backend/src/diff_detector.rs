@@ -66,10 +66,10 @@ impl DiffDetector {
     ) -> Result<Vec<PlayRecord>, DiffError> {
         let current_logs = read_all_score_data_logs(db_paths.scoredatalog)?;
 
-        let mut current_map: HashMap<ChartKey, ScoreDataLog> = HashMap::new();
-        for log in &current_logs {
-            current_map.insert((log.sha256.clone(), log.mode), log.clone());
-        }
+        let current_map: HashMap<ChartKey, ScoreDataLog> = current_logs
+            .into_iter()
+            .map(|log| ((log.sha256.clone(), log.mode), log))
+            .collect();
 
         let new_plays = if self.is_first_read {
             self.detect_first_read(&current_map, restored_keys)
@@ -194,27 +194,16 @@ impl DiffDetector {
         }
     }
 
-    /// Updates the best score cache if the current play is better.
+    /// Updates the best score cache per-metric: each metric is tracked independently.
     fn update_best_cache(&mut self, key: &ChartKey, play: &ScoreDataLog) {
-        let is_better = match self.best_cache.get(key) {
-            Some(cached) => {
-                play.clear > cached.clear
-                    || play.ex_score > cached.ex_score
-                    || play.min_bp < cached.min_bp
-            }
-            None => true,
-        };
-
-        if is_better {
-            self.best_cache.insert(
-                key.clone(),
-                BestScore {
-                    clear: play.clear,
-                    ex_score: play.ex_score,
-                    min_bp: play.min_bp,
-                },
-            );
-        }
+        let entry = self.best_cache.entry(key.clone()).or_insert(BestScore {
+            clear: play.clear,
+            ex_score: play.ex_score,
+            min_bp: play.min_bp,
+        });
+        entry.clear = entry.clear.max(play.clear);
+        entry.ex_score = entry.ex_score.max(play.ex_score);
+        entry.min_bp = entry.min_bp.min(play.min_bp);
     }
 }
 
@@ -415,11 +404,27 @@ mod tests {
     }
 
     fn insert_scoredatalog(conn: &Connection, sha256: &str, mode: i32, clear: i32, date: i64) {
+        insert_scoredatalog_full(conn, sha256, mode, clear, 100, 50, 80, 30, 15, date);
+    }
+
+    #[expect(clippy::too_many_arguments, reason = "test helper mirrors DB columns")]
+    fn insert_scoredatalog_full(
+        conn: &Connection,
+        sha256: &str,
+        mode: i32,
+        clear: i32,
+        epg: i32,
+        egr: i32,
+        lpg: i32,
+        lgr: i32,
+        minbp: i32,
+        date: i64,
+    ) {
         conn.execute(
             "INSERT OR REPLACE INTO scoredatalog \
              (sha256, mode, clear, epg, egr, egd, epr, emr, ems, lpg, lgr, lgd, lpr, lmr, lms, minbp, notes, combo, date) \
-             VALUES (?1, ?2, ?3, 100, 50, 0, 0, 0, 0, 80, 30, 0, 0, 0, 0, 15, 800, 500, ?4)",
-            rusqlite::params![sha256, mode, clear, date],
+             VALUES (?1, ?2, ?3, ?4, ?5, 0, 0, 0, 0, ?6, ?7, 0, 0, 0, 0, ?8, 800, 500, ?9)",
+            rusqlite::params![sha256, mode, clear, epg, egr, lpg, lgr, minbp, date],
         )
         .expect("insert scoredatalog");
     }
@@ -555,21 +560,42 @@ mod tests {
     }
 
     #[rstest]
-    fn test_best_update_uses_scorelog_old_values(test_dbs: TestDbs) {
-        // Best score in score.db
-        insert_score(&test_dbs.score_conn(), "abc123", 0, 5, 20);
-        // New play at date_millis = 1710500000000 (seconds = 1710500000)
+    #[case::best_update_uses_scorelog_old_values(
+        Some((5, 20)),    // score.db: clear=5, minbp=20
+        Some((5, 400, 20, 1710500000)),  // scorelog: old_clear=5, old_score=400, old_minbp=20
+        (Some(5), Some(400), Some(20)),
+    )]
+    #[case::no_best_update_uses_cached_best(
+        Some((6, 15)),    // score.db: clear=6, minbp=15
+        None,             // no scorelog entry
+        (Some(6), Some(440), Some(15)),   // cache values (ex_score=440 from score.db fixture)
+    )]
+    #[case::no_previous_best_for_first_play(
+        None,             // no score.db entry
+        None,             // no scorelog entry
+        (None, None, None),
+    )]
+    fn test_resolve_previous_best(
+        test_dbs: TestDbs,
+        #[case] score_db_entry: Option<(i32, i32)>,
+        #[case] scorelog_entry: Option<(i32, i32, i32, i64)>,
+        #[case] expected: (Option<i32>, Option<i32>, Option<i32>),
+    ) {
+        if let Some((clear, minbp)) = score_db_entry {
+            insert_score(&test_dbs.score_conn(), "abc123", 0, clear, minbp);
+        }
         insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710500000000);
-        // Best update log with old values (date in seconds)
-        insert_scorelog(
-            &test_dbs.scorelog_conn(),
-            "abc123",
-            0,
-            5,
-            400,
-            20,
-            1710500000,
-        );
+        if let Some((old_clear, old_score, old_minbp, date)) = scorelog_entry {
+            insert_scorelog(
+                &test_dbs.scorelog_conn(),
+                "abc123",
+                0,
+                old_clear,
+                old_score,
+                old_minbp,
+                date,
+            );
+        }
         insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
 
         let mut detector = DiffDetector::new();
@@ -580,33 +606,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(results.len(), 1);
-        // Previous best comes from scorelog old values
-        assert_eq!(results[0].previous_clear, Some(5));
-        assert_eq!(results[0].previous_ex_score, Some(400));
-        assert_eq!(results[0].previous_min_bp, Some(20));
-    }
-
-    #[rstest]
-    fn test_no_best_update_uses_cached_best(test_dbs: TestDbs) {
-        // Best score in score.db
-        insert_score(&test_dbs.score_conn(), "abc123", 0, 6, 15);
-        // New play (no improvement, so no scorelog entry)
-        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 5, 1710500000000);
-        insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
-
-        let mut detector = DiffDetector::new();
-        detector.load_best_scores(&test_dbs.paths.score).unwrap();
-
-        let results = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
-            .unwrap();
-
-        assert_eq!(results.len(), 1);
-        // Previous best comes from cache (loaded from score.db)
-        assert_eq!(results[0].previous_clear, Some(6));
-        // ex_score from score.db fixture: epg=100, egr=50, lpg=80, lgr=30 → 440
-        assert_eq!(results[0].previous_ex_score, Some(440));
-        assert_eq!(results[0].previous_min_bp, Some(15));
+        assert_eq!(results[0].previous_clear, expected.0);
+        assert_eq!(results[0].previous_ex_score, expected.1);
+        assert_eq!(results[0].previous_min_bp, expected.2);
     }
 
     #[rstest]
@@ -646,9 +648,26 @@ mod tests {
     }
 
     #[rstest]
-    fn test_song_metadata_attached(test_dbs: TestDbs) {
-        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710400000000);
-        insert_songdata(&test_dbs.songdata_conn(), "abc123", "FREEDOM DiVE", "xi");
+    #[case::metadata_found(
+        "abc123",
+        Some(("FREEDOM DiVE", "xi")),
+        ("FREEDOM DiVE", "xi", 12, 1),
+    )]
+    #[case::metadata_missing(
+        "unknown",
+        None,
+        ("", "", 0, 0),
+    )]
+    fn test_song_metadata(
+        test_dbs: TestDbs,
+        #[case] sha256: &str,
+        #[case] songdata: Option<(&str, &str)>,
+        #[case] expected: (&str, &str, i32, i32),
+    ) {
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), sha256, 0, 6, 1710400000000);
+        if let Some((title, artist)) = songdata {
+            insert_songdata(&test_dbs.songdata_conn(), sha256, title, artist);
+        }
 
         let mut detector = DiffDetector::new();
         detector.load_best_scores(&test_dbs.paths.score).unwrap();
@@ -658,53 +677,64 @@ mod tests {
             .unwrap();
 
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].title, "FREEDOM DiVE");
-        assert_eq!(results[0].artist, "xi");
-        assert_eq!(results[0].level, 12);
-        assert_eq!(results[0].difficulty, 1);
+        assert_eq!(results[0].title, expected.0);
+        assert_eq!(results[0].artist, expected.1);
+        assert_eq!(results[0].level, expected.2);
+        assert_eq!(results[0].difficulty, expected.3);
     }
 
     #[rstest]
-    fn test_missing_song_metadata_uses_defaults(test_dbs: TestDbs) {
-        insert_scoredatalog(
-            &test_dbs.scoredatalog_conn(),
-            "unknown",
-            0,
-            6,
-            1710400000000,
-        );
-        // No songdata entry
-
-        let mut detector = DiffDetector::new();
-        detector.load_best_scores(&test_dbs.paths.score).unwrap();
-
-        let results = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
-            .unwrap();
-
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].title, "");
-        assert_eq!(results[0].artist, "");
-        assert_eq!(results[0].level, 0);
-        assert_eq!(results[0].difficulty, 0);
-    }
-
-    #[rstest]
-    fn test_no_previous_best_for_first_play(test_dbs: TestDbs) {
-        // No score.db entry, no scorelog entry
-        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710400000000);
+    fn test_best_cache_merges_per_metric(test_dbs: TestDbs) {
+        // Initial best: clear=5, ex_score=500 (epg=200,egr=50,lpg=25,lgr=0), min_bp=10
+        insert_score(&test_dbs.score_conn(), "abc123", 0, 5, 10);
+        // Override ex_score in score.db to 500 by using custom epg/egr/lpg/lgr
+        // (score fixture uses epg=100,egr=50,lpg=80,lgr=30 → 440, so we use insert_score_full)
+        // Actually, insert_score uses fixed epg=100,egr=50,lpg=80,lgr=30 → ex_score=440
+        // So cache starts at {clear=5, ex_score=440, min_bp=10}
         insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
 
         let mut detector = DiffDetector::new();
         detector.load_best_scores(&test_dbs.paths.score).unwrap();
 
+        // Play with better clear (7) but worse ex_score (200) and worse min_bp (25)
+        // epg=50, egr=50, lpg=25, lgr=0 → ex_score = 50*2+50+25*2+0 = 200
+        insert_scoredatalog_full(
+            &test_dbs.scoredatalog_conn(),
+            "abc123",
+            0,
+            7,
+            50,
+            50,
+            25,
+            0,
+            25,
+            1710500000000,
+        );
+        let _ = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        // Next play: no best update, cache should have merged per-metric bests
+        // Expected cache: clear=max(5,7)=7, ex_score=max(440,200)=440, min_bp=min(10,25)=10
+        insert_scoredatalog_full(
+            &test_dbs.scoredatalog_conn(),
+            "abc123",
+            0,
+            3,
+            10,
+            10,
+            10,
+            10,
+            30,
+            1710600000000,
+        );
         let results = detector
             .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
             .unwrap();
 
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].previous_clear, None);
-        assert_eq!(results[0].previous_ex_score, None);
-        assert_eq!(results[0].previous_min_bp, None);
+        assert_eq!(results[0].previous_clear, Some(7));
+        assert_eq!(results[0].previous_ex_score, Some(440));
+        assert_eq!(results[0].previous_min_bp, Some(10));
     }
 }

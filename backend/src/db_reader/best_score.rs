@@ -59,7 +59,7 @@ pub fn read_all_best_scores(
     let mut stmt =
         conn.prepare("SELECT sha256, mode, clear, epg, egr, lpg, lgr, minbp FROM score")?;
 
-    let rows = stmt.query_map([], |row| {
+    stmt.query_map([], |row| {
         let sha256: String = row.get(0)?;
         let mode: i32 = row.get(1)?;
         let clear: i32 = row.get(2)?;
@@ -72,22 +72,15 @@ pub fn read_all_best_scores(
         let ex_score = epg * 2 + egr + lpg * 2 + lgr;
 
         Ok((
-            sha256,
-            mode,
+            (sha256, mode),
             BestScore {
                 clear,
                 ex_score,
                 min_bp,
             },
         ))
-    })?;
-
-    let mut map = HashMap::new();
-    for row in rows {
-        let (sha256, mode, score) = row?;
-        map.insert((sha256, mode), score);
-    }
-    Ok(map)
+    })?
+    .collect()
 }
 
 #[cfg(test)]
