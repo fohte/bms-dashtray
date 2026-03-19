@@ -70,11 +70,15 @@ const styles = {
   },
   entry: {
     display: 'flex',
-    alignItems: 'stretch',
-    minHeight: '56px',
+    alignItems: 'center',
+    borderRadius: '8px',
+    padding: '10px 12px',
+    gap: '12px',
   },
   lampBar: {
     width: '4px',
+    height: '32px',
+    borderRadius: '2px',
     flexShrink: 0,
   },
   content: {
@@ -82,7 +86,6 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '10px 12px',
     gap: '12px',
     minWidth: 0,
   },
@@ -211,9 +214,9 @@ function PlayHistoryEntry({
   const bpDiff = formatDiff(record.minBp, record.previousMinBp, true)
 
   return (
-    <div style={styles.entry}>
+    <div style={{ ...styles.entry, backgroundColor: bgColor }}>
       <div style={{ ...styles.lampBar, backgroundColor: lampColor }} />
-      <div style={{ ...styles.content, backgroundColor: bgColor }}>
+      <div style={styles.content}>
         <div style={styles.left as CSSProperties}>
           <div style={styles.titleRow as CSSProperties}>
             <span style={styles.title as CSSProperties}>{record.title}</span>
