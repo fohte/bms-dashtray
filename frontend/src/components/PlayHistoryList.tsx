@@ -23,15 +23,25 @@ const CLEAR_LAMP_NAMES: Record<number, string> = {
 const CLEAR_LAMP_COLORS: Record<number, string> = {
   0: '#555555',
   1: '#EF4444',
-  2: '#888888',
-  3: '#888888',
+  2: '#A78BFA',
+  3: '#C4B5FD',
   4: '#22C55E',
   5: '#3B82F6',
   6: '#F97316',
-  7: '#FBBF24',
-  8: '#ffffff',
-  9: '#ffffff',
-  10: '#ffffff',
+  7: '#FFFFFF',
+  8: '#FBBF24',
+  9: '#FBBF24',
+  10: '#FBBF24',
+}
+
+const FLASHING_CLEARS = new Set([7, 8, 9, 10])
+
+const DIFFICULTY_NAMES: Record<number, string> = {
+  0: 'BEGINNER',
+  1: 'NORMAL',
+  2: 'HYPER',
+  3: 'ANOTHER',
+  4: 'INSANE',
 }
 
 function getClearLampName(clear: number): string {
@@ -40,6 +50,10 @@ function getClearLampName(clear: number): string {
 
 function getClearLampColor(clear: number): string {
   return CLEAR_LAMP_COLORS[clear] ?? '#555555'
+}
+
+function getDifficultyName(difficulty: number): string | null {
+  return DIFFICULTY_NAMES[difficulty] ?? null
 }
 
 function formatDiff(
@@ -62,6 +76,13 @@ function formatDiff(
   return { text: `${sign}${String(diff)}`, color }
 }
 
+const flashingKeyframes = `
+@keyframes lampFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+`
+
 const styles = {
   container: {
     display: 'flex',
@@ -80,6 +101,9 @@ const styles = {
     height: '32px',
     borderRadius: '2px',
     flexShrink: 0,
+  },
+  lampBarFlashing: {
+    animation: 'lampFlash 1.2s ease-in-out infinite',
   },
   content: {
     flex: 1,
@@ -111,15 +135,11 @@ const styles = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
-  upBadge: {
+  difficultyName: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '8px',
-    fontWeight: 700,
-    color: '#0A0F1C',
-    backgroundColor: '#22D3EE',
-    padding: '2px 6px',
-    borderRadius: '4px',
-    letterSpacing: '1px',
+    fontSize: '9px',
+    fontWeight: 500,
+    color: '#475569',
     flexShrink: 0,
   },
   clearRow: {
@@ -196,6 +216,40 @@ const styles = {
   },
 } satisfies Record<string, CSSProperties>
 
+function LampBar({
+  currentColor,
+  previousColor,
+  flashing,
+}: {
+  currentColor: string
+  previousColor: string | null
+  flashing: boolean
+}) {
+  const flashStyle = flashing ? styles.lampBarFlashing : {}
+
+  if (previousColor != null && previousColor !== currentColor) {
+    return (
+      <div
+        style={{
+          ...styles.lampBar,
+          ...flashStyle,
+          background: `linear-gradient(to bottom, ${previousColor} 50%, ${currentColor} 50%)`,
+        }}
+      />
+    )
+  }
+
+  return (
+    <div
+      style={{
+        ...styles.lampBar,
+        ...flashStyle,
+        backgroundColor: currentColor,
+      }}
+    />
+  )
+}
+
 function PlayHistoryEntry({
   record,
   index,
@@ -206,21 +260,33 @@ function PlayHistoryEntry({
   const lampColor = getClearLampColor(record.clear)
   const clearName = getClearLampName(record.clear)
   const bgColor = index % 2 === 0 ? '#111111' : '#0A0A0A'
+  const diffName = getDifficultyName(record.difficulty)
 
   const clearUpdated =
     record.previousClear != null && record.clear > record.previousClear
+  const previousLampColor =
+    record.previousClear != null
+      ? getClearLampColor(record.previousClear)
+      : null
+  const flashing = FLASHING_CLEARS.has(record.clear)
 
   const exScoreDiff = formatDiff(record.exScore, record.previousExScore, false)
   const bpDiff = formatDiff(record.minBp, record.previousMinBp, true)
 
   return (
     <div style={{ ...styles.entry, backgroundColor: bgColor }}>
-      <div style={{ ...styles.lampBar, backgroundColor: lampColor }} />
+      <LampBar
+        currentColor={lampColor}
+        previousColor={clearUpdated ? previousLampColor : null}
+        flashing={flashing}
+      />
       <div style={styles.content}>
         <div style={styles.left as CSSProperties}>
           <div style={styles.titleRow as CSSProperties}>
             <span style={styles.title as CSSProperties}>{record.title}</span>
-            {clearUpdated && <span style={styles.upBadge}>UP</span>}
+            {diffName != null && (
+              <span style={styles.difficultyName}>{diffName}</span>
+            )}
           </div>
           <div style={styles.clearRow}>
             <span style={styles.level}>Lv.{record.level}</span>
@@ -264,10 +330,13 @@ export function PlayHistoryList({ records }: PlayHistoryListProps) {
   }
 
   return (
-    <div style={styles.container as CSSProperties}>
-      {records.map((record, index) => (
-        <PlayHistoryEntry key={record.id} record={record} index={index} />
-      ))}
-    </div>
+    <>
+      <style>{flashingKeyframes}</style>
+      <div style={styles.container as CSSProperties}>
+        {records.map((record, index) => (
+          <PlayHistoryEntry key={record.id} record={record} index={index} />
+        ))}
+      </div>
+    </>
   )
 }
