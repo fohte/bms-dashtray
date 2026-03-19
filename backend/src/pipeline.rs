@@ -15,6 +15,8 @@ pub enum PipelineError {
     Store(#[from] crate::history_store::StoreError),
     #[error("file watcher error: {0}")]
     Watch(#[from] crate::file_watcher::WatchError),
+    #[error("mutex poisoned: {0}")]
+    MutexPoisoned(String),
 }
 
 /// Build the set of (sha256, mode, played_at) keys from restored history records.
@@ -79,21 +81,17 @@ pub fn start_pipeline(
 
     // Build restored keys before initial read
     let restored_keys = {
-        let store_guard = store.lock().map_err(|e| {
-            crate::diff_detector::DiffError::DB(crate::db_reader::DBError::FileNotFound(
-                e.to_string(),
-            ))
-        })?;
+        let store_guard = store
+            .lock()
+            .map_err(|e| PipelineError::MutexPoisoned(format!("history store: {e}")))?;
         build_restored_keys(&store_guard)?
     };
 
     // Initial DB read
     {
-        let mut store_guard = store.lock().map_err(|e| {
-            crate::diff_detector::DiffError::DB(crate::db_reader::DBError::FileNotFound(
-                e.to_string(),
-            ))
-        })?;
+        let mut store_guard = store
+            .lock()
+            .map_err(|e| PipelineError::MutexPoisoned(format!("history store: {e}")))?;
         run_pipeline_cycle(
             &mut detector,
             &mut store_guard,
@@ -146,6 +144,7 @@ mod tests {
 
     use std::sync::Mutex as StdMutex;
 
+    use indoc::indoc;
     use rstest::{fixture, rstest};
     use rusqlite::Connection;
     use tempfile::TempDir;
@@ -195,6 +194,7 @@ mod tests {
         _dir: TempDir,
         config: AppConfig,
         store: HistoryStore,
+        detector: DiffDetector,
         emitter: Arc<MockEmitter>,
     }
 
@@ -222,116 +222,124 @@ mod tests {
 
         create_db_schema(
             &beatoraja_root.join("songdata.db"),
-            "CREATE TABLE song (
-                md5 TEXT NOT NULL,
-                sha256 TEXT NOT NULL,
-                title TEXT,
-                subtitle TEXT,
-                genre TEXT,
-                artist TEXT,
-                subartist TEXT,
-                tag TEXT,
-                path TEXT PRIMARY KEY,
-                folder TEXT,
-                stagefile TEXT,
-                banner TEXT,
-                backbmp TEXT,
-                preview TEXT,
-                parent TEXT,
-                level INTEGER,
-                difficulty INTEGER,
-                maxbpm INTEGER,
-                minbpm INTEGER,
-                length INTEGER,
-                mode INTEGER,
-                judge INTEGER,
-                feature INTEGER,
-                content INTEGER,
-                date INTEGER,
-                favorite INTEGER,
-                adddate INTEGER,
-                notes INTEGER,
-                charthash TEXT
-            )",
+            indoc! {"
+                CREATE TABLE song (
+                    md5 TEXT NOT NULL,
+                    sha256 TEXT NOT NULL,
+                    title TEXT,
+                    subtitle TEXT,
+                    genre TEXT,
+                    artist TEXT,
+                    subartist TEXT,
+                    tag TEXT,
+                    path TEXT PRIMARY KEY,
+                    folder TEXT,
+                    stagefile TEXT,
+                    banner TEXT,
+                    backbmp TEXT,
+                    preview TEXT,
+                    parent TEXT,
+                    level INTEGER,
+                    difficulty INTEGER,
+                    maxbpm INTEGER,
+                    minbpm INTEGER,
+                    length INTEGER,
+                    mode INTEGER,
+                    judge INTEGER,
+                    feature INTEGER,
+                    content INTEGER,
+                    date INTEGER,
+                    favorite INTEGER,
+                    adddate INTEGER,
+                    notes INTEGER,
+                    charthash TEXT
+                )
+            "},
         );
 
         create_db_schema(
             &player_dir.join("scoredatalog.db"),
-            "CREATE TABLE scoredatalog (
-                sha256 TEXT NOT NULL,
-                mode INTEGER NOT NULL,
-                clear INTEGER NOT NULL,
-                epg INTEGER NOT NULL,
-                egr INTEGER NOT NULL,
-                egd INTEGER NOT NULL,
-                epr INTEGER NOT NULL,
-                emr INTEGER NOT NULL,
-                ems INTEGER NOT NULL,
-                lpg INTEGER NOT NULL,
-                lgr INTEGER NOT NULL,
-                lgd INTEGER NOT NULL,
-                lpr INTEGER NOT NULL,
-                lmr INTEGER NOT NULL,
-                lms INTEGER NOT NULL,
-                minbp INTEGER NOT NULL,
-                notes INTEGER NOT NULL,
-                combo INTEGER NOT NULL,
-                date INTEGER NOT NULL,
-                PRIMARY KEY (sha256, mode)
-            )",
+            indoc! {"
+                CREATE TABLE scoredatalog (
+                    sha256 TEXT NOT NULL,
+                    mode INTEGER NOT NULL,
+                    clear INTEGER NOT NULL,
+                    epg INTEGER NOT NULL,
+                    egr INTEGER NOT NULL,
+                    egd INTEGER NOT NULL,
+                    epr INTEGER NOT NULL,
+                    emr INTEGER NOT NULL,
+                    ems INTEGER NOT NULL,
+                    lpg INTEGER NOT NULL,
+                    lgr INTEGER NOT NULL,
+                    lgd INTEGER NOT NULL,
+                    lpr INTEGER NOT NULL,
+                    lmr INTEGER NOT NULL,
+                    lms INTEGER NOT NULL,
+                    minbp INTEGER NOT NULL,
+                    notes INTEGER NOT NULL,
+                    combo INTEGER NOT NULL,
+                    date INTEGER NOT NULL,
+                    PRIMARY KEY (sha256, mode)
+                )
+            "},
         );
 
         create_db_schema(
             &player_dir.join("score.db"),
-            "CREATE TABLE score (
-                sha256 TEXT NOT NULL,
-                mode INTEGER,
-                clear INTEGER,
-                epg INTEGER,
-                lpg INTEGER,
-                egr INTEGER,
-                lgr INTEGER,
-                egd INTEGER,
-                lgd INTEGER,
-                ebd INTEGER,
-                lbd INTEGER,
-                epr INTEGER,
-                lpr INTEGER,
-                ems INTEGER,
-                lms INTEGER,
-                notes INTEGER,
-                combo INTEGER,
-                minbp INTEGER,
-                avgjudge INTEGER NOT NULL DEFAULT 2147483647,
-                playcount INTEGER,
-                clearcount INTEGER,
-                trophy TEXT,
-                ghost TEXT,
-                option INTEGER,
-                seed INTEGER,
-                random INTEGER,
-                date INTEGER,
-                state INTEGER,
-                scorehash TEXT,
-                PRIMARY KEY (sha256, mode)
-            )",
+            indoc! {"
+                CREATE TABLE score (
+                    sha256 TEXT NOT NULL,
+                    mode INTEGER,
+                    clear INTEGER,
+                    epg INTEGER,
+                    lpg INTEGER,
+                    egr INTEGER,
+                    lgr INTEGER,
+                    egd INTEGER,
+                    lgd INTEGER,
+                    ebd INTEGER,
+                    lbd INTEGER,
+                    epr INTEGER,
+                    lpr INTEGER,
+                    ems INTEGER,
+                    lms INTEGER,
+                    notes INTEGER,
+                    combo INTEGER,
+                    minbp INTEGER,
+                    avgjudge INTEGER NOT NULL DEFAULT 2147483647,
+                    playcount INTEGER,
+                    clearcount INTEGER,
+                    trophy TEXT,
+                    ghost TEXT,
+                    option INTEGER,
+                    seed INTEGER,
+                    random INTEGER,
+                    date INTEGER,
+                    state INTEGER,
+                    scorehash TEXT,
+                    PRIMARY KEY (sha256, mode)
+                )
+            "},
         );
 
         create_db_schema(
             &player_dir.join("scorelog.db"),
-            "CREATE TABLE scorelog (
-                sha256 TEXT NOT NULL,
-                mode INTEGER,
-                clear INTEGER,
-                oldclear INTEGER,
-                score INTEGER,
-                oldscore INTEGER,
-                combo INTEGER,
-                oldcombo INTEGER,
-                minbp INTEGER,
-                oldminbp INTEGER,
-                date INTEGER
-            )",
+            indoc! {"
+                CREATE TABLE scorelog (
+                    sha256 TEXT NOT NULL,
+                    mode INTEGER,
+                    clear INTEGER,
+                    oldclear INTEGER,
+                    score INTEGER,
+                    oldscore INTEGER,
+                    combo INTEGER,
+                    oldcombo INTEGER,
+                    minbp INTEGER,
+                    oldminbp INTEGER,
+                    date INTEGER
+                )
+            "},
         );
 
         let config = AppConfig {
@@ -344,10 +352,18 @@ mod tests {
         let store = HistoryStore::new(history_path, &config.reset_time);
         let emitter = Arc::new(MockEmitter::new());
 
+        let mut detector = DiffDetector::new();
+        detector
+            .load_best_scores(&config.score_db_path())
+            .unwrap_or_else(|e| {
+                panic!("failed to load best scores: {e}");
+            });
+
         PipelineTestContext {
             _dir: dir,
             config,
             store,
+            detector,
             emitter,
         }
     }
@@ -386,16 +402,9 @@ mod tests {
         insert_scoredatalog(&ctx.config, "abc123", 0, 6, today_millis(10));
         insert_songdata(&ctx.config, "abc123", "Test Song", "Artist");
 
-        let mut detector = DiffDetector::new();
-        detector
-            .load_best_scores(&ctx.config.score_db_path())
-            .unwrap_or_else(|e| {
-                panic!("failed to load best scores: {e}");
-            });
-
         let restored_keys = HashSet::new();
         run_pipeline_cycle(
-            &mut detector,
+            &mut ctx.detector,
             &mut ctx.store,
             ctx.emitter.as_ref(),
             &ctx.config,
@@ -420,17 +429,9 @@ mod tests {
 
     #[rstest]
     fn test_pipeline_cycle_no_emit_when_no_changes(mut ctx: PipelineTestContext) {
-        // No records in DB, so no changes detected
-        let mut detector = DiffDetector::new();
-        detector
-            .load_best_scores(&ctx.config.score_db_path())
-            .unwrap_or_else(|e| {
-                panic!("failed to load best scores: {e}");
-            });
-
         let restored_keys = HashSet::new();
         run_pipeline_cycle(
-            &mut detector,
+            &mut ctx.detector,
             &mut ctx.store,
             ctx.emitter.as_ref(),
             &ctx.config,
@@ -448,18 +449,11 @@ mod tests {
         insert_scoredatalog(&ctx.config, "abc123", 0, 6, today_millis(10));
         insert_songdata(&ctx.config, "abc123", "Song A", "Artist A");
 
-        let mut detector = DiffDetector::new();
-        detector
-            .load_best_scores(&ctx.config.score_db_path())
-            .unwrap_or_else(|e| {
-                panic!("failed to load best scores: {e}");
-            });
-
         let restored_keys = HashSet::new();
 
         // First cycle: adds first record
         run_pipeline_cycle(
-            &mut detector,
+            &mut ctx.detector,
             &mut ctx.store,
             ctx.emitter.as_ref(),
             &ctx.config,
@@ -475,7 +469,7 @@ mod tests {
 
         // Second cycle: adds second record, payload should contain both
         run_pipeline_cycle(
-            &mut detector,
+            &mut ctx.detector,
             &mut ctx.store,
             ctx.emitter.as_ref(),
             &ctx.config,
@@ -506,16 +500,9 @@ mod tests {
         insert_scoredatalog(&ctx.config, "abc123", 0, 6, today_millis(10));
         insert_songdata(&ctx.config, "abc123", "Test Song", "Artist");
 
-        let mut detector = DiffDetector::new();
-        detector
-            .load_best_scores(&ctx.config.score_db_path())
-            .unwrap_or_else(|e| {
-                panic!("failed to load best scores: {e}");
-            });
-
         let restored_keys = HashSet::new();
         run_pipeline_cycle(
-            &mut detector,
+            &mut ctx.detector,
             &mut ctx.store,
             ctx.emitter.as_ref(),
             &ctx.config,
