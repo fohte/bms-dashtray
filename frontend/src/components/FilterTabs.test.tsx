@@ -19,41 +19,46 @@ describe('FilterTabs', () => {
     expect(screen.getByRole('button', { name: 'UPDATED' })).toBeInTheDocument()
   })
 
-  it('marks ALL tab as pressed when activeFilter is all', () => {
-    renderFilterTabs({ activeFilter: 'all' })
-    expect(screen.getByRole('button', { name: 'ALL' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
-    expect(screen.getByRole('button', { name: 'UPDATED' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    )
-  })
+  it.each([
+    { activeFilter: 'all' as const, pressed: 'ALL', notPressed: 'UPDATED' },
+    {
+      activeFilter: 'updated' as const,
+      pressed: 'UPDATED',
+      notPressed: 'ALL',
+    },
+  ])(
+    'marks $pressed tab as pressed when activeFilter is $activeFilter',
+    ({ activeFilter, pressed, notPressed }) => {
+      renderFilterTabs({ activeFilter })
+      expect(screen.getByRole('button', { name: pressed })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+      expect(screen.getByRole('button', { name: notPressed })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      )
+    },
+  )
 
-  it('marks UPDATED tab as pressed when activeFilter is updated', () => {
-    renderFilterTabs({ activeFilter: 'updated' })
-    expect(screen.getByRole('button', { name: 'ALL' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    )
-    expect(screen.getByRole('button', { name: 'UPDATED' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
-  })
-
-  it('calls onFilterChange with updated when UPDATED tab is clicked', () => {
-    const onFilterChange = vi.fn()
-    renderFilterTabs({ activeFilter: 'all', onFilterChange })
-    screen.getByRole('button', { name: 'UPDATED' }).click()
-    expect(onFilterChange).toHaveBeenCalledWith('updated')
-  })
-
-  it('calls onFilterChange with all when ALL tab is clicked', () => {
-    const onFilterChange = vi.fn()
-    renderFilterTabs({ activeFilter: 'updated', onFilterChange })
-    screen.getByRole('button', { name: 'ALL' }).click()
-    expect(onFilterChange).toHaveBeenCalledWith('all')
-  })
+  it.each([
+    {
+      activeFilter: 'all' as const,
+      clickTarget: 'UPDATED',
+      expected: 'updated',
+    },
+    {
+      activeFilter: 'updated' as const,
+      clickTarget: 'ALL',
+      expected: 'all',
+    },
+  ])(
+    'calls onFilterChange with $expected when $clickTarget tab is clicked',
+    ({ activeFilter, clickTarget, expected }) => {
+      const onFilterChange = vi.fn()
+      renderFilterTabs({ activeFilter, onFilterChange })
+      screen.getByRole('button', { name: clickTarget }).click()
+      expect(onFilterChange).toHaveBeenCalledWith(expected)
+    },
+  )
 })

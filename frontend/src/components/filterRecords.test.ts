@@ -104,22 +104,32 @@ describe('filterRecords', () => {
     id: 'no-previous',
   })
 
-  it('returns all records when filter is all', () => {
-    const records = [updatedRecord, notUpdatedRecord, noPreviousRecord]
-    expect(filterRecords(records, 'all')).toEqual(records)
-  })
-
-  it('returns only updated records when filter is updated', () => {
-    const records = [updatedRecord, notUpdatedRecord, noPreviousRecord]
-    expect(filterRecords(records, 'updated')).toEqual([updatedRecord])
-  })
-
-  it('returns empty array when no records are updated', () => {
-    const records = [notUpdatedRecord, noPreviousRecord]
-    expect(filterRecords(records, 'updated')).toEqual([])
-  })
-
-  it('returns empty array when input is empty', () => {
-    expect(filterRecords([], 'updated')).toEqual([])
+  it.each([
+    {
+      name: 'all filter returns all records',
+      filter: 'all' as const,
+      records: [updatedRecord, notUpdatedRecord, noPreviousRecord],
+      expected: [updatedRecord, notUpdatedRecord, noPreviousRecord],
+    },
+    {
+      name: 'updated filter returns only updated records',
+      filter: 'updated' as const,
+      records: [updatedRecord, notUpdatedRecord, noPreviousRecord],
+      expected: [updatedRecord],
+    },
+    {
+      name: 'updated filter with no updated records',
+      filter: 'updated' as const,
+      records: [notUpdatedRecord, noPreviousRecord],
+      expected: [],
+    },
+    {
+      name: 'updated filter with empty input',
+      filter: 'updated' as const,
+      records: [],
+      expected: [],
+    },
+  ])('$name', ({ records, filter, expected }) => {
+    expect(filterRecords(records, filter)).toEqual(expected)
   })
 })
