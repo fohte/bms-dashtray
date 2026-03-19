@@ -153,8 +153,14 @@ impl HistoryStore {
     }
 
     pub fn reset(&mut self) -> Result<(), StoreError> {
-        self.records.clear();
-        self.persist()
+        let previous = std::mem::take(&mut self.records);
+        match self.persist() {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                self.records = previous;
+                Err(e)
+            }
+        }
     }
 
     pub fn persist(&self) -> Result<(), StoreError> {
