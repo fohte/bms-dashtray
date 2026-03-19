@@ -72,8 +72,6 @@ const styles = {
     display: 'flex',
     alignItems: 'stretch',
     minHeight: '56px',
-    borderRadius: '8px',
-    overflow: 'hidden',
   },
   lampBar: {
     width: '4px',
