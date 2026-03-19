@@ -1,11 +1,13 @@
 # Changes here will be overwritten by Copier
 _commit: v0.4.0
 _src_path: https://github.com/fohte/generic-boilerplate
+auto_merge_release_pr: false
 description: beatoraja のプレイ履歴をリアルタイム表示する Tauri デスクトップアプリ
 is_public: false
 monorepo_node_workspace: false
 node_package_manager: pnpm
 project_name: bms-dashtray
+release_type: simple
 subpackages:
   - name: frontend
     type: node
@@ -14,6 +16,3 @@ subpackages:
 type: base
 use_coverage: true
 use_release_please: true
-release_type: simple
-auto_merge_release_pr: false
-release_binary: false
