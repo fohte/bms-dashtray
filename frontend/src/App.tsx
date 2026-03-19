@@ -172,6 +172,9 @@ export const App = () => {
       >
         <button
           type="button"
+          onClick={() => {
+            void tauriApi.resetHistory()
+          }}
           style={{
             background: 'none',
             border: '1px solid #475569',
