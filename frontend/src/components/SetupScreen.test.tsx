@@ -19,7 +19,7 @@ function renderSetupScreen(overrides: Partial<SetupScreenProps> = {}) {
 describe('SetupScreen', () => {
   it('renders the title and description', () => {
     renderSetupScreen()
-    expect(screen.getByText('BMS DASHTRAY')).toBeInTheDocument()
+    expect(screen.getByText('bms-dashtray')).toBeInTheDocument()
     expect(screen.getByText(/beatoraja/)).toBeInTheDocument()
   })
 
@@ -85,7 +85,7 @@ describe('SetupScreen', () => {
   it('calls onSelectFolder when BROWSE is clicked', () => {
     const onSelectFolder = vi.fn()
     renderSetupScreen({ onSelectFolder })
-    screen.getByRole('button', { name: 'BROWSE' }).click()
+    screen.getByRole('button', { name: '...' }).click()
     expect(onSelectFolder).toHaveBeenCalledOnce()
   })
 

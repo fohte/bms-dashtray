@@ -39,12 +39,25 @@ const styles = {
     fontFamily: "'JetBrains Mono', monospace",
   },
   header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '12px',
+  },
+  headerLabel: {
+    fontFamily:
+      "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     fontSize: '11px',
     fontWeight: 600,
-    color: '#666666',
-    letterSpacing: '1px',
+    color: '#64748B',
+    letterSpacing: '2px',
     textTransform: 'uppercase',
-    marginBottom: '12px',
+  },
+  headerTotal: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: '11px',
+    fontWeight: 500,
+    color: '#475569',
   },
   emptyMessage: {
     fontSize: '12px',
@@ -60,9 +73,10 @@ const styles = {
     height: '24px',
   },
   levelLabel: {
-    fontSize: '11px',
-    color: '#ffffff',
-    width: '48px',
+    fontSize: '10px',
+    fontWeight: 600,
+    color: '#64748B',
+    width: '38px',
     textAlign: 'right',
     flexShrink: 0,
   },
@@ -70,19 +84,20 @@ const styles = {
     flex: 1,
     height: '16px',
     backgroundColor: '#111111',
-    borderRadius: '2px',
+    borderRadius: '3px',
     overflow: 'hidden',
   },
   bar: {
     height: '100%',
     backgroundColor: '#ffffff',
-    borderRadius: '2px',
+    borderRadius: '3px',
     transition: 'width 0.3s ease',
   },
   countLabel: {
-    fontSize: '11px',
-    color: '#888888',
-    width: '72px',
+    fontSize: '10px',
+    fontWeight: 700,
+    color: '#94A3B8',
+    width: '16px',
     textAlign: 'right',
     flexShrink: 0,
   },
@@ -91,10 +106,16 @@ const styles = {
 export function DistributionChart({ records }: DistributionChartProps) {
   const distribution = aggregateLevelDistribution(records)
   const maxCount = Math.max(0, ...distribution.map((d) => d.count))
+  const total = records.length
 
   return (
     <div style={styles.container}>
-      <div style={styles.header as CSSProperties}>LEVEL DISTRIBUTION</div>
+      <div style={styles.header}>
+        <span style={styles.headerLabel as CSSProperties}>
+          DIFFICULTY DISTRIBUTION
+        </span>
+        <span style={styles.headerTotal}>{total} total</span>
+      </div>
       {distribution.length === 0 ? (
         <div style={styles.emptyMessage as CSSProperties}>No play data</div>
       ) : (
@@ -117,9 +138,7 @@ export function DistributionChart({ records }: DistributionChartProps) {
                 aria-valuemax={maxCount}
               />
             </div>
-            <div style={styles.countLabel as CSSProperties}>
-              {item.count} ({item.percentage}%)
-            </div>
+            <div style={styles.countLabel as CSSProperties}>{item.count}</div>
           </div>
         ))
       )}

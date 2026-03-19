@@ -23,7 +23,7 @@ describe('SetupScreenContainer', () => {
     const api = createMockApi()
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
     expect(api.openFolderDialog).toHaveBeenCalledOnce()
   })
 
@@ -34,7 +34,7 @@ describe('SetupScreenContainer', () => {
     })
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     await waitFor(() => {
       expect(api.validateAndSaveConfig).toHaveBeenCalledWith(
@@ -49,7 +49,7 @@ describe('SetupScreenContainer', () => {
     })
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     await waitFor(() => {
       expect(screen.getByText('/path/to/beatoraja')).toBeInTheDocument()
@@ -63,7 +63,7 @@ describe('SetupScreenContainer', () => {
     })
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'START' })).toBeEnabled()
@@ -79,7 +79,7 @@ describe('SetupScreenContainer', () => {
     })
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     await waitFor(() => {
       expect(
@@ -96,7 +96,7 @@ describe('SetupScreenContainer', () => {
     })
     render(<SetupScreenContainer api={api} onSetupComplete={onSetupComplete} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'START' })).toBeEnabled()
@@ -112,7 +112,7 @@ describe('SetupScreenContainer', () => {
     })
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     expect(api.validateAndSaveConfig).not.toHaveBeenCalled()
     expect(screen.getByText('Select folder...')).toBeInTheDocument()

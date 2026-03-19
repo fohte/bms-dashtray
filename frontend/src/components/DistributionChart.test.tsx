@@ -79,13 +79,13 @@ describe('DistributionChart', () => {
     render(<DistributionChart records={records} />)
     expect(screen.getByText('Lv.10')).toBeInTheDocument()
     expect(screen.getByText('Lv.11')).toBeInTheDocument()
-    expect(screen.getByText('2 (67%)')).toBeInTheDocument()
-    expect(screen.getByText('1 (33%)')).toBeInTheDocument()
+    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument()
   })
 
   it('renders the section header', () => {
     render(<DistributionChart records={[]} />)
-    expect(screen.getByText('LEVEL DISTRIBUTION')).toBeInTheDocument()
+    expect(screen.getByText('DIFFICULTY DISTRIBUTION')).toBeInTheDocument()
   })
 
   it('renders bar elements with correct aria attributes', () => {

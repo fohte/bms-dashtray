@@ -66,12 +66,14 @@ const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0px',
+    gap: '2px',
   },
   entry: {
     display: 'flex',
     alignItems: 'stretch',
     minHeight: '56px',
+    borderRadius: '8px',
+    overflow: 'hidden',
   },
   lampBar: {
     width: '4px',
@@ -82,7 +84,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '8px 12px',
+    padding: '10px 12px',
     gap: '12px',
     minWidth: 0,
   },
@@ -102,7 +104,7 @@ const styles = {
     fontFamily:
       "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     fontSize: '13px',
-    fontWeight: 500,
+    fontWeight: 600,
     color: '#ffffff',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -112,7 +114,7 @@ const styles = {
     fontFamily: "'JetBrains Mono', monospace",
     fontSize: '11px',
     fontWeight: 600,
-    color: '#888888',
+    color: '#94A3B8',
     flexShrink: 0,
   },
   clearRow: {
@@ -122,23 +124,25 @@ const styles = {
   },
   clearName: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '11px',
-    fontWeight: 600,
+    fontSize: '10px',
+    fontWeight: 700,
+    letterSpacing: '1px',
   },
   upBadge: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '10px',
+    fontSize: '8px',
     fontWeight: 700,
-    color: '#000000',
-    backgroundColor: '#22C55E',
-    padding: '1px 4px',
-    borderRadius: '2px',
-    letterSpacing: '0.5px',
+    color: '#0A0F1C',
+    backgroundColor: '#22D3EE',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    letterSpacing: '1px',
   },
   previousClear: {
     fontFamily: "'JetBrains Mono', monospace",
     fontSize: '10px',
-    color: '#666666',
+    fontWeight: 500,
+    color: '#475569',
   },
   right: {
     display: 'flex',
@@ -149,25 +153,35 @@ const styles = {
   },
   scoreRow: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'baseline',
     gap: '6px',
-  },
-  scoreLabel: {
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '10px',
-    color: '#666666',
-    fontWeight: 600,
   },
   scoreValue: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '12px',
+    fontSize: '14px',
     color: '#ffffff',
-    fontWeight: 600,
+    fontWeight: 700,
   },
   scoreDiff: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '11px',
-    fontWeight: 600,
+    fontSize: '10px',
+    fontWeight: 500,
+  },
+  bpRow: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '6px',
+  },
+  bpValue: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: '10px',
+    fontWeight: 500,
+    color: '#64748B',
+  },
+  bpDiff: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: '9px',
+    fontWeight: 500,
   },
   emptyState: {
     display: 'flex',
@@ -214,6 +228,7 @@ function PlayHistoryEntry({
               <>
                 <span style={styles.upBadge}>UP</span>
                 <span style={styles.previousClear}>
+                  {'< '}
                   {getClearLampName(record.previousClear!)}
                 </span>
               </>
@@ -222,7 +237,6 @@ function PlayHistoryEntry({
         </div>
         <div style={styles.right as CSSProperties}>
           <div style={styles.scoreRow}>
-            <span style={styles.scoreLabel}>EX</span>
             <span style={styles.scoreValue}>{record.exScore}</span>
             {exScoreDiff != null && (
               <span style={{ ...styles.scoreDiff, color: exScoreDiff.color }}>
@@ -230,11 +244,10 @@ function PlayHistoryEntry({
               </span>
             )}
           </div>
-          <div style={styles.scoreRow}>
-            <span style={styles.scoreLabel}>BP</span>
-            <span style={styles.scoreValue}>{record.minBp}</span>
+          <div style={styles.bpRow}>
+            <span style={styles.bpValue}>{record.minBp} bp</span>
             {bpDiff != null && (
-              <span style={{ ...styles.scoreDiff, color: bpDiff.color }}>
+              <span style={{ ...styles.bpDiff, color: bpDiff.color }}>
                 {bpDiff.text}
               </span>
             )}

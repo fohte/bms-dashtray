@@ -56,7 +56,7 @@ describe('SettingsScreenContainer', () => {
       />,
     )
 
-    await userEvent.click(screen.getByText('← BACK'))
+    await userEvent.click(screen.getByText('< BACK'))
     expect(onBack).toHaveBeenCalledOnce()
   })
 
@@ -205,7 +205,7 @@ describe('SettingsScreenContainer', () => {
       />,
     )
 
-    await userEvent.click(screen.getByText('CHANGE'))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     await waitFor(() => {
       expect(api.validateAndSaveConfig).toHaveBeenCalledWith('/new/path')

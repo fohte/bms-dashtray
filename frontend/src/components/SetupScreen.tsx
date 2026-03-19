@@ -31,16 +31,32 @@ const styles = {
     fontFamily:
       "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
+  iconFrame: {
+    width: '64px',
+    height: '64px',
+    backgroundColor: '#111111',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: '16px',
+  },
+  iconText: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: '16px',
+    fontWeight: 700,
+    color: '#ffffff',
+  },
   title: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '24px',
+    fontSize: '20px',
     fontWeight: 700,
     letterSpacing: '2px',
     marginBottom: '8px',
   },
   description: {
     fontSize: '13px',
-    color: '#888888',
+    color: '#94A3B8',
     marginBottom: '32px',
     textAlign: 'center',
     lineHeight: 1.5,
@@ -64,10 +80,10 @@ const styles = {
   },
   pathDisplay: {
     flex: 1,
-    padding: '10px 12px',
+    padding: '12px 16px',
     backgroundColor: '#111111',
-    border: '1px solid #333333',
-    borderRadius: '4px',
+    border: '1px solid #222222',
+    borderRadius: '8px',
     fontFamily: "'JetBrains Mono', monospace",
     fontSize: '12px',
     color: '#ffffff',
@@ -79,14 +95,14 @@ const styles = {
     color: '#555555',
   },
   browseButton: {
-    padding: '10px 16px',
-    backgroundColor: '#222222',
-    border: '1px solid #444444',
+    padding: '4px 8px',
+    backgroundColor: '#FFFFFF',
+    border: 'none',
     borderRadius: '4px',
-    color: '#ffffff',
+    color: '#000000',
     fontFamily: "'JetBrains Mono', monospace",
     fontSize: '12px',
-    fontWeight: 600,
+    fontWeight: 700,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     transition: 'background-color 0.15s',
@@ -200,14 +216,19 @@ export function SetupScreen({
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>BMS DASHTRAY</h1>
+      <div style={styles.iconFrame}>
+        <span style={styles.iconText}>BMS</span>
+      </div>
+      <h1 style={styles.title}>bms-dashtray</h1>
       <p style={styles.description as CSSProperties}>
-        beatoraja のプレイ履歴をリアルタイムに表示します。
+        beatoraja のプレイ履歴を
         <br />
-        はじめに beatoraja のルートディレクトリを選択してください。
+        リアルタイムに表示します
       </p>
 
-      <div style={styles.sectionLabel as CSSProperties}>BEATORAJA ROOT</div>
+      <div style={styles.sectionLabel as CSSProperties}>
+        BEATORAJA ROOT DIRECTORY
+      </div>
       <div style={styles.pathSelector}>
         <div style={styles.pathDisplay as CSSProperties}>
           {selectedPath ?? (
@@ -220,11 +241,10 @@ export function SetupScreen({
           onClick={onSelectFolder}
           disabled={isValidating}
         >
-          BROWSE
+          ...
         </button>
       </div>
 
-      <div style={styles.sectionLabel as CSSProperties}>DATABASE FILES</div>
       <div style={styles.dbStatusList}>
         {DB_FILE_NAMES.map((name) => {
           const status = getFileStatus(name, dbFileStatuses)
