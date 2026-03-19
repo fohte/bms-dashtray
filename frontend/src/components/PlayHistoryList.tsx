@@ -110,24 +110,6 @@ const styles = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
-  level: {
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '11px',
-    fontWeight: 600,
-    color: '#94A3B8',
-    flexShrink: 0,
-  },
-  clearRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-  },
-  clearName: {
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '10px',
-    fontWeight: 700,
-    letterSpacing: '1px',
-  },
   upBadge: {
     fontFamily: "'JetBrains Mono', monospace",
     fontSize: '8px',
@@ -136,6 +118,25 @@ const styles = {
     backgroundColor: '#22D3EE',
     padding: '2px 6px',
     borderRadius: '4px',
+    letterSpacing: '1px',
+    flexShrink: 0,
+  },
+  clearRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  level: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: '11px',
+    fontWeight: 600,
+    color: '#94A3B8',
+    flexShrink: 0,
+  },
+  clearName: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: '10px',
+    fontWeight: 700,
     letterSpacing: '1px',
   },
   previousClear: {
@@ -218,20 +219,18 @@ function PlayHistoryEntry({
         <div style={styles.left as CSSProperties}>
           <div style={styles.titleRow as CSSProperties}>
             <span style={styles.title as CSSProperties}>{record.title}</span>
-            <span style={styles.level}>Lv.{record.level}</span>
+            {clearUpdated && <span style={styles.upBadge}>UP</span>}
           </div>
           <div style={styles.clearRow}>
+            <span style={styles.level}>Lv.{record.level}</span>
             <span style={{ ...styles.clearName, color: lampColor }}>
               {clearName}
             </span>
             {clearUpdated && (
-              <>
-                <span style={styles.upBadge}>UP</span>
-                <span style={styles.previousClear}>
-                  {'< '}
-                  {getClearLampName(record.previousClear!)}
-                </span>
-              </>
+              <span style={styles.previousClear}>
+                {'< '}
+                {getClearLampName(record.previousClear!)}
+              </span>
             )}
           </div>
         </div>
