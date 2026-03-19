@@ -4,11 +4,11 @@
   "identifier": "com.fohte.bms-dashtray",
   "build": {
     "beforeBuildCommand": {
-      "script": "bun run build",
+      "script": "pnpm run build",
       "cwd": "../frontend"
     },
     "beforeDevCommand": {
-      "script": "bun run dev",
+      "script": "pnpm run dev",
       "cwd": "../frontend"
     },
     "devUrl": "http://localhost:1420",
