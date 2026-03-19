@@ -4,6 +4,7 @@
 mod commands;
 mod config;
 mod db_reader;
+pub mod diff_detector;
 mod file_watcher;
 pub mod history_store;
 

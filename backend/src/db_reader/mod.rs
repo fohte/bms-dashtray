@@ -8,7 +8,7 @@ mod best_score;
 mod score_log;
 mod song_metadata;
 
-pub use best_score::{BestScore, read_best_score};
+pub use best_score::{BestScore, read_all_best_scores, read_best_score};
 pub use score_log::{ScoreLog, read_score_log};
 pub use song_metadata::{SongMetadata, read_song_metadata};
 
@@ -30,6 +30,8 @@ pub struct ScoreDataLog {
     pub combo: i32,
     /// ISO 8601 formatted date string converted from UNIX time (milliseconds).
     pub played_at: String,
+    /// Raw UNIX timestamp in milliseconds from the database.
+    pub date_millis: i64,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -89,6 +91,7 @@ pub fn read_all_score_data_logs(path: &Path) -> Result<Vec<ScoreDataLog>, DBErro
             notes: row.get(8)?,
             combo: row.get(9)?,
             played_at: unix_millis_to_iso8601(date_millis)?,
+            date_millis,
         })
     })?;
 
@@ -233,6 +236,7 @@ mod tests {
         assert_eq!(record.notes, 800);
         assert_eq!(record.combo, 500);
         assert_eq!(record.played_at, "2024-03-14T07:06:40.000Z");
+        assert_eq!(record.date_millis, 1710400000000);
     }
 
     #[rstest]

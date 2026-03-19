@@ -1,0 +1,710 @@
+use std::collections::{HashMap, HashSet};
+use std::path::Path;
+
+use crate::db_reader::{
+    BestScore, ScoreDataLog, read_all_best_scores, read_all_score_data_logs, read_score_log,
+    read_song_metadata,
+};
+use crate::history_store::PlayRecord;
+
+#[derive(Debug, thiserror::Error)]
+pub enum DiffError {
+    #[error("database error: {0}")]
+    DB(#[from] crate::db_reader::DBError),
+    #[error("SQLite error: {0}")]
+    Sqlite(#[from] rusqlite::Error),
+}
+
+type ChartKey = (String, i32);
+
+pub struct DiffDetector {
+    /// Previous snapshot: (sha256, mode) -> ScoreDataLog
+    snapshot: HashMap<ChartKey, ScoreDataLog>,
+    /// Best score cache: (sha256, mode) -> BestScore
+    best_cache: HashMap<ChartKey, BestScore>,
+    /// Whether this is the first read (no previous snapshot exists)
+    is_first_read: bool,
+}
+
+/// DB paths required by DiffDetector.
+pub struct DbPaths<'a> {
+    pub scoredatalog: &'a Path,
+    pub score: &'a Path,
+    pub scorelog: &'a Path,
+    pub songdata: &'a Path,
+}
+
+impl Default for DiffDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DiffDetector {
+    pub fn new() -> Self {
+        Self {
+            snapshot: HashMap::new(),
+            best_cache: HashMap::new(),
+            is_first_read: true,
+        }
+    }
+
+    /// Load initial best score cache from score.db.
+    pub fn load_best_scores(&mut self, score_db_path: &Path) -> Result<(), DiffError> {
+        self.best_cache = read_all_best_scores(score_db_path)?;
+        Ok(())
+    }
+
+    /// Called when the DB file changes. Detects new plays by comparing against the previous snapshot.
+    ///
+    /// On the first read, `restored_keys` should contain (sha256, mode, played_at) tuples
+    /// from the HistoryStore so that already-restored records are skipped.
+    pub fn on_db_changed(
+        &mut self,
+        db_paths: &DbPaths<'_>,
+        restored_keys: &HashSet<(String, i32, String)>,
+    ) -> Result<Vec<PlayRecord>, DiffError> {
+        let current_logs = read_all_score_data_logs(db_paths.scoredatalog)?;
+
+        let mut current_map: HashMap<ChartKey, ScoreDataLog> = HashMap::new();
+        for log in &current_logs {
+            current_map.insert((log.sha256.clone(), log.mode), log.clone());
+        }
+
+        let new_plays = if self.is_first_read {
+            self.detect_first_read(&current_map, restored_keys)
+        } else {
+            self.detect_changes(&current_map)
+        };
+
+        let records = self.enrich_plays(&new_plays, db_paths)?;
+
+        self.snapshot = current_map;
+        self.is_first_read = false;
+
+        Ok(records)
+    }
+
+    /// On first read, every record whose (sha256, mode, played_at) is NOT in restored_keys
+    /// is considered a new play.
+    fn detect_first_read(
+        &self,
+        current: &HashMap<ChartKey, ScoreDataLog>,
+        restored_keys: &HashSet<(String, i32, String)>,
+    ) -> Vec<ScoreDataLog> {
+        current
+            .values()
+            .filter(|log| {
+                !restored_keys.contains(&(log.sha256.clone(), log.mode, log.played_at.clone()))
+            })
+            .cloned()
+            .collect()
+    }
+
+    /// On subsequent reads, a record is new if its `played_at` differs from the snapshot.
+    fn detect_changes(&self, current: &HashMap<ChartKey, ScoreDataLog>) -> Vec<ScoreDataLog> {
+        let mut new_plays = Vec::new();
+
+        for (key, log) in current {
+            match self.snapshot.get(key) {
+                Some(prev) if prev.played_at != log.played_at => {
+                    new_plays.push(log.clone());
+                }
+                None => {
+                    // Completely new chart entry
+                    new_plays.push(log.clone());
+                }
+                _ => {}
+            }
+        }
+
+        new_plays
+    }
+
+    /// Enriches raw score data logs with song metadata and best score information.
+    fn enrich_plays(
+        &mut self,
+        plays: &[ScoreDataLog],
+        db_paths: &DbPaths<'_>,
+    ) -> Result<Vec<PlayRecord>, DiffError> {
+        let mut records = Vec::with_capacity(plays.len());
+
+        for play in plays {
+            let key = (play.sha256.clone(), play.mode);
+
+            // Determine previous best: check scorelog for best update, otherwise use cache
+            let previous = self.resolve_previous_best(&key, play, db_paths)?;
+
+            // Update best cache if the current play is better
+            self.update_best_cache(&key, play);
+
+            let metadata = read_song_metadata(db_paths.songdata, &play.sha256)?;
+
+            let (title, artist, level, difficulty) = match metadata {
+                Some(m) => (m.title, m.artist, m.level, m.difficulty),
+                None => (String::new(), String::new(), 0, 0),
+            };
+
+            records.push(PlayRecord {
+                id: uuid::Uuid::new_v4().to_string(),
+                sha256: play.sha256.clone(),
+                mode: play.mode,
+                clear: play.clear,
+                ex_score: play.ex_score,
+                min_bp: play.min_bp,
+                notes: play.notes,
+                combo: play.combo,
+                played_at: play.played_at.clone(),
+                title,
+                artist,
+                level,
+                difficulty,
+                previous_clear: previous.as_ref().map(|p| p.clear),
+                previous_ex_score: previous.as_ref().map(|p| p.ex_score),
+                previous_min_bp: previous.as_ref().map(|p| p.min_bp),
+            });
+        }
+
+        Ok(records)
+    }
+
+    /// Resolves the previous best score for a play.
+    /// If scorelog has an entry for this timestamp (best update happened),
+    /// use the old values from scorelog. Otherwise, use the cached best.
+    fn resolve_previous_best(
+        &self,
+        key: &ChartKey,
+        play: &ScoreDataLog,
+        db_paths: &DbPaths<'_>,
+    ) -> Result<Option<BestScore>, DiffError> {
+        // scorelog.date stores UNIX seconds, scoredatalog.date stores UNIX milliseconds
+        let date_seconds = play.date_millis / 1000;
+        let score_log = read_score_log(db_paths.scorelog, &play.sha256, play.mode, date_seconds)?;
+
+        if let Some(log) = score_log {
+            // Best was updated: the old values represent the previous best
+            Ok(Some(BestScore {
+                clear: log.old_clear,
+                ex_score: log.old_score,
+                min_bp: log.old_min_bp,
+            }))
+        } else {
+            // No best update: use the cached best score
+            Ok(self.best_cache.get(key).cloned())
+        }
+    }
+
+    /// Updates the best score cache if the current play is better.
+    fn update_best_cache(&mut self, key: &ChartKey, play: &ScoreDataLog) {
+        let is_better = match self.best_cache.get(key) {
+            Some(cached) => {
+                play.clear > cached.clear
+                    || play.ex_score > cached.ex_score
+                    || play.min_bp < cached.min_bp
+            }
+            None => true,
+        };
+
+        if is_better {
+            self.best_cache.insert(
+                key.clone(),
+                BestScore {
+                    clear: play.clear,
+                    ex_score: play.ex_score,
+                    min_bp: play.min_bp,
+                },
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use indoc::indoc;
+    use rstest::{fixture, rstest};
+    use rusqlite::Connection;
+    use tempfile::TempDir;
+
+    const SCOREDATALOG_SCHEMA: &str = indoc! {"
+        CREATE TABLE scoredatalog (
+            sha256 TEXT NOT NULL,
+            mode INTEGER NOT NULL,
+            clear INTEGER NOT NULL,
+            epg INTEGER NOT NULL,
+            egr INTEGER NOT NULL,
+            egd INTEGER NOT NULL,
+            epr INTEGER NOT NULL,
+            emr INTEGER NOT NULL,
+            ems INTEGER NOT NULL,
+            lpg INTEGER NOT NULL,
+            lgr INTEGER NOT NULL,
+            lgd INTEGER NOT NULL,
+            lpr INTEGER NOT NULL,
+            lmr INTEGER NOT NULL,
+            lms INTEGER NOT NULL,
+            minbp INTEGER NOT NULL,
+            notes INTEGER NOT NULL,
+            combo INTEGER NOT NULL,
+            date INTEGER NOT NULL,
+            PRIMARY KEY (sha256, mode)
+        )
+    "};
+
+    const SCORE_SCHEMA: &str = indoc! {"
+        CREATE TABLE score (
+            sha256 TEXT NOT NULL,
+            mode INTEGER,
+            clear INTEGER,
+            epg INTEGER,
+            lpg INTEGER,
+            egr INTEGER,
+            lgr INTEGER,
+            egd INTEGER,
+            lgd INTEGER,
+            ebd INTEGER,
+            lbd INTEGER,
+            epr INTEGER,
+            lpr INTEGER,
+            ems INTEGER,
+            lms INTEGER,
+            notes INTEGER,
+            combo INTEGER,
+            minbp INTEGER,
+            avgjudge INTEGER NOT NULL DEFAULT 2147483647,
+            playcount INTEGER,
+            clearcount INTEGER,
+            trophy TEXT,
+            ghost TEXT,
+            option INTEGER,
+            seed INTEGER,
+            random INTEGER,
+            date INTEGER,
+            state INTEGER,
+            scorehash TEXT,
+            PRIMARY KEY (sha256, mode)
+        )
+    "};
+
+    const SCORELOG_SCHEMA: &str = indoc! {"
+        CREATE TABLE scorelog (
+            sha256 TEXT NOT NULL,
+            mode INTEGER,
+            clear INTEGER,
+            oldclear INTEGER,
+            score INTEGER,
+            oldscore INTEGER,
+            combo INTEGER,
+            oldcombo INTEGER,
+            minbp INTEGER,
+            oldminbp INTEGER,
+            date INTEGER
+        )
+    "};
+
+    const SONGDATA_SCHEMA: &str = indoc! {"
+        CREATE TABLE song (
+            md5 TEXT NOT NULL,
+            sha256 TEXT NOT NULL,
+            title TEXT,
+            subtitle TEXT,
+            genre TEXT,
+            artist TEXT,
+            subartist TEXT,
+            tag TEXT,
+            path TEXT PRIMARY KEY,
+            folder TEXT,
+            stagefile TEXT,
+            banner TEXT,
+            backbmp TEXT,
+            preview TEXT,
+            parent TEXT,
+            level INTEGER,
+            difficulty INTEGER,
+            maxbpm INTEGER,
+            minbpm INTEGER,
+            length INTEGER,
+            mode INTEGER,
+            judge INTEGER,
+            feature INTEGER,
+            content INTEGER,
+            date INTEGER,
+            favorite INTEGER,
+            adddate INTEGER,
+            notes INTEGER,
+            charthash TEXT
+        )
+    "};
+
+    struct TestDbs {
+        _dir: TempDir,
+        paths: TestDbPaths,
+    }
+
+    struct TestDbPaths {
+        scoredatalog: std::path::PathBuf,
+        score: std::path::PathBuf,
+        scorelog: std::path::PathBuf,
+        songdata: std::path::PathBuf,
+    }
+
+    impl TestDbs {
+        fn db_paths(&self) -> DbPaths<'_> {
+            DbPaths {
+                scoredatalog: &self.paths.scoredatalog,
+                score: &self.paths.score,
+                scorelog: &self.paths.scorelog,
+                songdata: &self.paths.songdata,
+            }
+        }
+
+        fn scoredatalog_conn(&self) -> Connection {
+            Connection::open(&self.paths.scoredatalog).expect("open scoredatalog")
+        }
+
+        fn score_conn(&self) -> Connection {
+            Connection::open(&self.paths.score).expect("open score")
+        }
+
+        fn scorelog_conn(&self) -> Connection {
+            Connection::open(&self.paths.scorelog).expect("open scorelog")
+        }
+
+        fn songdata_conn(&self) -> Connection {
+            Connection::open(&self.paths.songdata).expect("open songdata")
+        }
+    }
+
+    #[fixture]
+    fn test_dbs() -> TestDbs {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let base = dir.path();
+
+        let scoredatalog = base.join("scoredatalog.db");
+        let score = base.join("score.db");
+        let scorelog = base.join("scorelog.db");
+        let songdata = base.join("songdata.db");
+
+        Connection::open(&scoredatalog)
+            .expect("open")
+            .execute_batch(SCOREDATALOG_SCHEMA)
+            .expect("schema");
+        Connection::open(&score)
+            .expect("open")
+            .execute_batch(SCORE_SCHEMA)
+            .expect("schema");
+        Connection::open(&scorelog)
+            .expect("open")
+            .execute_batch(SCORELOG_SCHEMA)
+            .expect("schema");
+        Connection::open(&songdata)
+            .expect("open")
+            .execute_batch(SONGDATA_SCHEMA)
+            .expect("schema");
+
+        TestDbs {
+            _dir: dir,
+            paths: TestDbPaths {
+                scoredatalog,
+                score,
+                scorelog,
+                songdata,
+            },
+        }
+    }
+
+    fn insert_scoredatalog(conn: &Connection, sha256: &str, mode: i32, clear: i32, date: i64) {
+        conn.execute(
+            "INSERT OR REPLACE INTO scoredatalog \
+             (sha256, mode, clear, epg, egr, egd, epr, emr, ems, lpg, lgr, lgd, lpr, lmr, lms, minbp, notes, combo, date) \
+             VALUES (?1, ?2, ?3, 100, 50, 0, 0, 0, 0, 80, 30, 0, 0, 0, 0, 15, 800, 500, ?4)",
+            rusqlite::params![sha256, mode, clear, date],
+        )
+        .expect("insert scoredatalog");
+    }
+
+    fn insert_score(conn: &Connection, sha256: &str, mode: i32, clear: i32, minbp: i32) {
+        conn.execute(
+            "INSERT INTO score (sha256, mode, clear, epg, egr, lpg, lgr, minbp) \
+             VALUES (?1, ?2, ?3, 100, 50, 80, 30, ?4)",
+            rusqlite::params![sha256, mode, clear, minbp],
+        )
+        .expect("insert score");
+    }
+
+    fn insert_scorelog(
+        conn: &Connection,
+        sha256: &str,
+        mode: i32,
+        old_clear: i32,
+        old_score: i32,
+        old_minbp: i32,
+        date: i64,
+    ) {
+        conn.execute(
+            "INSERT INTO scorelog (sha256, mode, clear, oldclear, score, oldscore, combo, oldcombo, minbp, oldminbp, date) \
+             VALUES (?1, ?2, 6, ?3, 440, ?4, 500, 480, 15, ?5, ?6)",
+            rusqlite::params![sha256, mode, old_clear, old_score, old_minbp, date],
+        )
+        .expect("insert scorelog");
+    }
+
+    fn insert_songdata(conn: &Connection, sha256: &str, title: &str, artist: &str) {
+        conn.execute(
+            "INSERT INTO song (md5, sha256, title, artist, level, difficulty, notes, mode, path) \
+             VALUES ('md5', ?1, ?2, ?3, 12, 1, 1500, 0, ?1)",
+            rusqlite::params![sha256, title, artist],
+        )
+        .expect("insert songdata");
+    }
+
+    #[rstest]
+    fn test_detect_new_record(test_dbs: TestDbs) {
+        // date_millis = 1710400000000 (2024-03-14T07:06:40.000Z)
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710400000000);
+        insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
+
+        let mut detector = DiffDetector::new();
+        detector.load_best_scores(&test_dbs.paths.score).unwrap();
+
+        let results = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].sha256, "abc123");
+        assert_eq!(results[0].title, "Test Song");
+        assert_eq!(results[0].clear, 6);
+        // ex_score = 100*2 + 50 + 80*2 + 30 = 440
+        assert_eq!(results[0].ex_score, 440);
+    }
+
+    #[rstest]
+    fn test_detect_updated_record(test_dbs: TestDbs) {
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 5, 1710400000000);
+        insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
+
+        let mut detector = DiffDetector::new();
+        detector.load_best_scores(&test_dbs.paths.score).unwrap();
+
+        // First read: establishes snapshot
+        let _ = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        // Update the record (simulate a new play)
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710500000000);
+
+        let results = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].sha256, "abc123");
+        assert_eq!(results[0].clear, 6);
+    }
+
+    #[rstest]
+    fn test_no_change_detected(test_dbs: TestDbs) {
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710400000000);
+        insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
+
+        let mut detector = DiffDetector::new();
+        detector.load_best_scores(&test_dbs.paths.score).unwrap();
+
+        // First read
+        let _ = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        // Second read with same data: no changes
+        let results = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        assert!(results.is_empty());
+    }
+
+    #[rstest]
+    fn test_skip_restored_records_on_first_read(test_dbs: TestDbs) {
+        // Two records in the DB
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710400000000);
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "def456", 0, 5, 1710500000000);
+        insert_songdata(&test_dbs.songdata_conn(), "abc123", "Song A", "Artist");
+        insert_songdata(&test_dbs.songdata_conn(), "def456", "Song B", "Artist");
+
+        let mut detector = DiffDetector::new();
+        detector.load_best_scores(&test_dbs.paths.score).unwrap();
+
+        // abc123 was already restored from history
+        let mut restored = HashSet::new();
+        restored.insert((
+            "abc123".to_string(),
+            0,
+            "2024-03-14T07:06:40.000Z".to_string(),
+        ));
+
+        let results = detector
+            .on_db_changed(&test_dbs.db_paths(), &restored)
+            .unwrap();
+
+        // Only def456 should be detected as new
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].sha256, "def456");
+    }
+
+    #[rstest]
+    fn test_best_update_uses_scorelog_old_values(test_dbs: TestDbs) {
+        // Best score in score.db
+        insert_score(&test_dbs.score_conn(), "abc123", 0, 5, 20);
+        // New play at date_millis = 1710500000000 (seconds = 1710500000)
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710500000000);
+        // Best update log with old values (date in seconds)
+        insert_scorelog(
+            &test_dbs.scorelog_conn(),
+            "abc123",
+            0,
+            5,
+            400,
+            20,
+            1710500000,
+        );
+        insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
+
+        let mut detector = DiffDetector::new();
+        detector.load_best_scores(&test_dbs.paths.score).unwrap();
+
+        let results = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        assert_eq!(results.len(), 1);
+        // Previous best comes from scorelog old values
+        assert_eq!(results[0].previous_clear, Some(5));
+        assert_eq!(results[0].previous_ex_score, Some(400));
+        assert_eq!(results[0].previous_min_bp, Some(20));
+    }
+
+    #[rstest]
+    fn test_no_best_update_uses_cached_best(test_dbs: TestDbs) {
+        // Best score in score.db
+        insert_score(&test_dbs.score_conn(), "abc123", 0, 6, 15);
+        // New play (no improvement, so no scorelog entry)
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 5, 1710500000000);
+        insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
+
+        let mut detector = DiffDetector::new();
+        detector.load_best_scores(&test_dbs.paths.score).unwrap();
+
+        let results = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        assert_eq!(results.len(), 1);
+        // Previous best comes from cache (loaded from score.db)
+        assert_eq!(results[0].previous_clear, Some(6));
+        // ex_score from score.db fixture: epg=100, egr=50, lpg=80, lgr=30 → 440
+        assert_eq!(results[0].previous_ex_score, Some(440));
+        assert_eq!(results[0].previous_min_bp, Some(15));
+    }
+
+    #[rstest]
+    fn test_best_cache_updated_after_best_update(test_dbs: TestDbs) {
+        insert_score(&test_dbs.score_conn(), "abc123", 0, 5, 20);
+        insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
+
+        let mut detector = DiffDetector::new();
+        detector.load_best_scores(&test_dbs.paths.score).unwrap();
+
+        // First play: best update happens
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710500000000);
+        insert_scorelog(
+            &test_dbs.scorelog_conn(),
+            "abc123",
+            0,
+            5,
+            400,
+            20,
+            1710500000,
+        );
+        let _ = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        // Second play: no best update, should use the updated cache
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 5, 1710600000000);
+        let results = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        assert_eq!(results.len(), 1);
+        // Cache should reflect the updated best (from the first play: clear=6, ex_score=440, min_bp=15)
+        assert_eq!(results[0].previous_clear, Some(6));
+        assert_eq!(results[0].previous_ex_score, Some(440));
+        assert_eq!(results[0].previous_min_bp, Some(15));
+    }
+
+    #[rstest]
+    fn test_song_metadata_attached(test_dbs: TestDbs) {
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710400000000);
+        insert_songdata(&test_dbs.songdata_conn(), "abc123", "FREEDOM DiVE", "xi");
+
+        let mut detector = DiffDetector::new();
+        detector.load_best_scores(&test_dbs.paths.score).unwrap();
+
+        let results = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "FREEDOM DiVE");
+        assert_eq!(results[0].artist, "xi");
+        assert_eq!(results[0].level, 12);
+        assert_eq!(results[0].difficulty, 1);
+    }
+
+    #[rstest]
+    fn test_missing_song_metadata_uses_defaults(test_dbs: TestDbs) {
+        insert_scoredatalog(
+            &test_dbs.scoredatalog_conn(),
+            "unknown",
+            0,
+            6,
+            1710400000000,
+        );
+        // No songdata entry
+
+        let mut detector = DiffDetector::new();
+        detector.load_best_scores(&test_dbs.paths.score).unwrap();
+
+        let results = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "");
+        assert_eq!(results[0].artist, "");
+        assert_eq!(results[0].level, 0);
+        assert_eq!(results[0].difficulty, 0);
+    }
+
+    #[rstest]
+    fn test_no_previous_best_for_first_play(test_dbs: TestDbs) {
+        // No score.db entry, no scorelog entry
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710400000000);
+        insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
+
+        let mut detector = DiffDetector::new();
+        detector.load_best_scores(&test_dbs.paths.score).unwrap();
+
+        let results = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].previous_clear, None);
+        assert_eq!(results[0].previous_ex_score, None);
+        assert_eq!(results[0].previous_min_bp, None);
+    }
+}
