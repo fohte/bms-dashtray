@@ -31,11 +31,15 @@ export const App = () => {
     tauriApi
       .getConfig()
       .then((cfg) => {
-        setConfig(cfg)
-        setAppState('main')
+        if (cfg != null) {
+          setConfig(cfg)
+          setAppState('main')
+        } else {
+          setAppState('setup')
+        }
       })
       .catch(() => {
-        setAppState('main')
+        setAppState('setup')
       })
   }, [])
 
@@ -87,6 +91,8 @@ export const App = () => {
     <div
       style={{
         minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
         backgroundColor: '#000000',
         color: '#ffffff',
         fontFamily: "'JetBrains Mono', monospace",
@@ -128,10 +134,10 @@ export const App = () => {
       </div>
       <div
         style={{
+          flex: 1,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          minHeight: 'calc(100vh - 49px)',
         }}
       >
         BMS DASHTRAY

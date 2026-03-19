@@ -1,4 +1,5 @@
-import { type CSSProperties, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { useState } from 'react'
 
 import type { AppConfig } from '@/types'
 
@@ -260,17 +261,15 @@ export function SettingsScreen({
         <span style={styles.headerTitle}>SETTINGS</span>
       </div>
 
-      <div style={styles.content as CSSProperties}>
+      <div style={styles.content}>
         {/* BEATORAJA Section */}
         <section>
-          <div style={styles.sectionTitle as CSSProperties}>BEATORAJA</div>
-          <div style={styles.pathRow as CSSProperties}>
-            <div style={styles.pathDisplay as CSSProperties}>
-              {config.beatorajaRoot}
-            </div>
+          <div style={styles.sectionTitle}>BEATORAJA</div>
+          <div style={styles.pathRow}>
+            <div style={styles.pathDisplay}>{config.beatorajaRoot}</div>
             <button
               type="button"
-              style={styles.changeButton as CSSProperties}
+              style={styles.changeButton}
               onClick={onChangeBeatorajaRoot}
             >
               CHANGE
@@ -284,7 +283,7 @@ export function SettingsScreen({
 
         {/* DISPLAY Section */}
         <section>
-          <div style={styles.sectionTitle as CSSProperties}>DISPLAY</div>
+          <div style={styles.sectionTitle}>DISPLAY</div>
           <div style={styles.row}>
             <span style={styles.label}>Background Transparent</span>
             <button
@@ -323,9 +322,7 @@ export function SettingsScreen({
               >
                 -
               </button>
-              <span style={styles.fontSizeValue as CSSProperties}>
-                {config.fontSize}px
-              </span>
+              <span style={styles.fontSizeValue}>{config.fontSize}px</span>
               <button
                 type="button"
                 style={styles.fontSizeButton}
@@ -340,14 +337,14 @@ export function SettingsScreen({
 
         {/* DATA Section */}
         <section>
-          <div style={styles.sectionTitle as CSSProperties}>DATA</div>
+          <div style={styles.sectionTitle}>DATA</div>
           <div style={styles.row}>
             <span style={styles.label}>Reset Time</span>
             <input
               type="time"
               value={config.resetTime}
               onChange={(e) => onChangeResetTime(e.target.value)}
-              style={styles.timeInput as CSSProperties}
+              style={styles.timeInput}
               aria-label="Reset time"
             />
           </div>
@@ -364,8 +361,8 @@ export function SettingsScreen({
       </div>
 
       {showResetConfirm && (
-        <div style={styles.confirmOverlay as CSSProperties}>
-          <div style={styles.confirmDialog as CSSProperties}>
+        <div style={styles.confirmOverlay}>
+          <div style={styles.confirmDialog}>
             <div style={styles.confirmTitle}>Reset History</div>
             <p style={styles.confirmMessage}>
               This will clear all play history for today. This action cannot be

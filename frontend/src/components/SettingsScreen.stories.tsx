@@ -23,50 +23,39 @@ const defaultConfig = {
 
 const noop = () => {}
 
+const baseArgs = {
+  onBack: noop,
+  onChangeBeatorajaRoot: noop,
+  onToggleBackgroundTransparent: noop,
+  onChangeFontSize: noop,
+  onChangeResetTime: noop,
+  onResetHistory: noop,
+}
+
 export const Default: Story = {
   args: {
+    ...baseArgs,
     config: defaultConfig,
-    onBack: noop,
-    onChangeBeatorajaRoot: noop,
-    onToggleBackgroundTransparent: noop,
-    onChangeFontSize: noop,
-    onChangeResetTime: noop,
-    onResetHistory: noop,
   },
 }
 
 export const TransparentEnabled: Story = {
   args: {
+    ...baseArgs,
     config: { ...defaultConfig, backgroundTransparent: true },
-    onBack: noop,
-    onChangeBeatorajaRoot: noop,
-    onToggleBackgroundTransparent: noop,
-    onChangeFontSize: noop,
-    onChangeResetTime: noop,
-    onResetHistory: noop,
   },
 }
 
 export const LargeFontSize: Story = {
   args: {
+    ...baseArgs,
     config: { ...defaultConfig, fontSize: 20 },
-    onBack: noop,
-    onChangeBeatorajaRoot: noop,
-    onToggleBackgroundTransparent: noop,
-    onChangeFontSize: noop,
-    onChangeResetTime: noop,
-    onResetHistory: noop,
   },
 }
 
 export const CustomResetTime: Story = {
   args: {
+    ...baseArgs,
     config: { ...defaultConfig, resetTime: '04:00' },
-    onBack: noop,
-    onChangeBeatorajaRoot: noop,
-    onToggleBackgroundTransparent: noop,
-    onChangeFontSize: noop,
-    onChangeResetTime: noop,
-    onResetHistory: noop,
   },
 }

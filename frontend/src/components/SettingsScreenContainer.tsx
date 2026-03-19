@@ -21,11 +21,13 @@ export function SettingsScreenContainer({
 
   const updateConfig = useCallback(
     (patch: Partial<AppConfig>) => {
-      const updated = { ...currentConfig, ...patch }
-      setCurrentConfig(updated)
-      onConfigChanged(updated)
+      setCurrentConfig((prev) => {
+        const updated = { ...prev, ...patch }
+        onConfigChanged(updated)
+        return updated
+      })
     },
-    [currentConfig, onConfigChanged],
+    [onConfigChanged],
   )
 
   const handleChangeBeatorajaRoot = useCallback(async () => {
@@ -54,12 +56,16 @@ export function SettingsScreenContainer({
 
   const handleChangeFontSize = useCallback(
     async (delta: number) => {
-      const newSize = Math.max(8, Math.min(24, currentConfig.fontSize + delta))
-      if (newSize === currentConfig.fontSize) return
-      updateConfig({ fontSize: newSize })
-      await api.updateSettings({ fontSize: newSize })
+      setCurrentConfig((prev) => {
+        const newSize = Math.max(8, Math.min(24, prev.fontSize + delta))
+        if (newSize === prev.fontSize) return prev
+        const updated = { ...prev, fontSize: newSize }
+        onConfigChanged(updated)
+        api.updateSettings({ fontSize: newSize })
+        return updated
+      })
     },
-    [api, currentConfig.fontSize, updateConfig],
+    [api, onConfigChanged],
   )
 
   const handleChangeResetTime = useCallback(
