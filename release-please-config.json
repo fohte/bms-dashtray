@@ -15,13 +15,7 @@
     { "type": "ci", "hidden": true }
   ],
   "packages": {
-    "frontend": {
-      "release-type": "simple",
-      "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": true
-    },
-
-    "backend": {
+    ".": {
       "release-type": "simple",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true

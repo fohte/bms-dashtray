@@ -10,8 +10,8 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     outputs:
-      backend-release-created: ${{ steps.release.outputs['backend--release_created'] }}
-      backend-tag-name: ${{ steps.release.outputs['backend--tag_name'] }}
+      release-created: ${{ steps.release.outputs.release_created }}
+      tag-name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: actions/create-github-app-token@v2
         id: app-token
@@ -28,7 +28,7 @@ jobs:
 
   build-tauri:
     needs: release-please
-    if: needs.release-please.outputs.backend-release-created == 'true'
+    if: needs.release-please.outputs.release-created == 'true'
     permissions:
       contents: write
     strategy:
@@ -82,5 +82,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: ./backend
-          tagName: ${{ needs.release-please.outputs.backend-tag-name }}
+          tagName: ${{ needs.release-please.outputs.tag-name }}
           args: ${{ matrix.args }}
