@@ -1,21 +1,14 @@
 // Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod commands;
-mod config;
-mod db_reader;
-pub mod diff_detector;
-mod event_bridge;
-mod file_watcher;
-pub mod history_store;
-mod pipeline;
-
 use std::sync::{Arc, Mutex};
 
-use commands::{ConfigManagerState, HistoryStoreState};
-use config::ConfigManager;
-use event_bridge::TauriEventEmitter;
-use history_store::HistoryStore;
+use bms_dashtray::commands;
+use bms_dashtray::commands::{ConfigManagerState, HistoryStoreState};
+use bms_dashtray::config::ConfigManager;
+use bms_dashtray::event_bridge::TauriEventEmitter;
+use bms_dashtray::history_store::HistoryStore;
+use bms_dashtray::pipeline;
 use tauri::Manager as _;
 
 fn main() {
