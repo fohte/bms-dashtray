@@ -70,7 +70,7 @@ describe('SetupScreenContainer', () => {
     })
   })
 
-  it('shows error on validation failure', async () => {
+  it('shows not-found files on validation failure', async () => {
     const api = createMockApi({
       openFolderDialog: vi.fn().mockResolvedValue('/wrong/path'),
       validateAndSaveConfig: vi
@@ -83,8 +83,9 @@ describe('SetupScreenContainer', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('Missing: scoredatalog.db, score.db'),
+        screen.getByText('scoredatalog.db が見つかりません'),
       ).toBeInTheDocument()
+      expect(screen.getByText('score.db が見つかりません')).toBeInTheDocument()
     })
   })
 

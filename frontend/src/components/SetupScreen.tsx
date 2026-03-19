@@ -74,13 +74,13 @@ const styles = {
   pathSelector: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
     width: '100%',
-    marginBottom: '24px',
+    marginBottom: '16px',
+    position: 'relative',
   },
   pathDisplay: {
     flex: 1,
-    padding: '12px 16px',
+    padding: '12px 48px 12px 16px',
     backgroundColor: '#111111',
     border: '1px solid #222222',
     borderRadius: '8px',
@@ -91,10 +91,15 @@ const styles = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
+  pathDisplayError: {
+    borderColor: '#EF4444',
+  },
   pathPlaceholder: {
     color: '#555555',
   },
   browseButton: {
+    position: 'absolute',
+    right: '8px',
     padding: '4px 8px',
     backgroundColor: '#FFFFFF',
     border: 'none',
@@ -107,17 +112,22 @@ const styles = {
     whiteSpace: 'nowrap',
     transition: 'background-color 0.15s',
   },
-  dbStatusList: {
+  dbStatusArea: {
     width: '100%',
     marginBottom: '24px',
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: '12px',
+  },
+  dbStatusSummary: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
   dbStatusItem: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    padding: '6px 0',
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '12px',
+    padding: '4px 0',
   },
   statusIcon: {
     width: '16px',
@@ -132,16 +142,6 @@ const styles = {
   },
   statusPending: {
     color: '#555555',
-  },
-  errorMessage: {
-    width: '100%',
-    padding: '10px 12px',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.3)',
-    borderRadius: '4px',
-    color: '#EF4444',
-    fontSize: '12px',
-    marginBottom: '24px',
   },
   startButton: {
     width: '100%',
@@ -170,37 +170,6 @@ const styles = {
   },
 } satisfies Record<string, CSSProperties>
 
-function StatusIcon({ status }: { status: 'found' | 'not-found' | 'pending' }) {
-  if (status === 'found') {
-    return (
-      <span style={{ ...styles.statusIcon, ...styles.statusFound }}>
-        &#10003;
-      </span>
-    )
-  }
-  if (status === 'not-found') {
-    return (
-      <span style={{ ...styles.statusIcon, ...styles.statusNotFound }}>
-        &#10005;
-      </span>
-    )
-  }
-  return (
-    <span style={{ ...styles.statusIcon, ...styles.statusPending }}>
-      &#8212;
-    </span>
-  )
-}
-
-function getFileStatus(
-  name: string,
-  dbFileStatuses: DbFileStatus[],
-): 'found' | 'not-found' | 'pending' {
-  const status = dbFileStatuses.find((s) => s.name === name)
-  if (!status) return 'pending'
-  return status.found ? 'found' : 'not-found'
-}
-
 export function SetupScreen({
   selectedPath,
   dbFileStatuses,
@@ -212,7 +181,13 @@ export function SetupScreen({
   const allFound =
     dbFileStatuses.length === DB_FILE_NAMES.length &&
     dbFileStatuses.every((s) => s.found)
+  const hasNotFound = dbFileStatuses.some((s) => !s.found)
   const canStart = allFound && !isValidating && error == null
+
+  const foundFiles = dbFileStatuses.filter((s) => s.found).map((s) => s.name)
+  const notFoundFiles = dbFileStatuses
+    .filter((s) => !s.found)
+    .map((s) => s.name)
 
   return (
     <div style={styles.container}>
@@ -229,8 +204,13 @@ export function SetupScreen({
       <div style={styles.sectionLabel as CSSProperties}>
         BEATORAJA ROOT DIRECTORY
       </div>
-      <div style={styles.pathSelector}>
-        <div style={styles.pathDisplay as CSSProperties}>
+      <div style={styles.pathSelector as CSSProperties}>
+        <div
+          style={{
+            ...(styles.pathDisplay as CSSProperties),
+            ...(hasNotFound ? styles.pathDisplayError : {}),
+          }}
+        >
           {selectedPath ?? (
             <span style={styles.pathPlaceholder}>Select folder...</span>
           )}
@@ -245,30 +225,41 @@ export function SetupScreen({
         </button>
       </div>
 
-      <div style={styles.dbStatusList}>
-        {DB_FILE_NAMES.map((name) => {
-          const status = getFileStatus(name, dbFileStatuses)
-          return (
-            <div key={name} style={styles.dbStatusItem}>
-              <StatusIcon status={status} />
-              <span
-                style={{
-                  color:
-                    status === 'not-found'
-                      ? '#EF4444'
-                      : status === 'found'
-                        ? '#ffffff'
-                        : '#555555',
-                }}
-              >
-                {name}
-              </span>
-            </div>
-          )
-        })}
+      <div style={styles.dbStatusArea}>
+        {dbFileStatuses.length === 0 ? null : allFound ? (
+          <div style={styles.dbStatusSummary}>
+            <span style={{ ...styles.statusIcon, ...styles.statusFound }}>
+              &#10003;
+            </span>
+            <span style={{ color: '#ffffff' }}>
+              {foundFiles.join(', ')} found
+            </span>
+          </div>
+        ) : (
+          <>
+            {notFoundFiles.map((name) => (
+              <div key={name} style={styles.dbStatusItem}>
+                <span
+                  style={{ ...styles.statusIcon, ...styles.statusNotFound }}
+                >
+                  &#10005;
+                </span>
+                <span style={{ color: '#EF4444' }}>
+                  {name} が見つかりません
+                </span>
+              </div>
+            ))}
+            {foundFiles.map((name) => (
+              <div key={name} style={styles.dbStatusItem}>
+                <span style={{ ...styles.statusIcon, ...styles.statusFound }}>
+                  &#10003;
+                </span>
+                <span style={{ color: '#ffffff' }}>{name} found</span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
-
-      {error != null && <div style={styles.errorMessage}>{error}</div>}
 
       <button
         type="button"
