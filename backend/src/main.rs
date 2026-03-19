@@ -5,13 +5,16 @@ mod commands;
 mod config;
 mod db_reader;
 pub mod diff_detector;
+mod event_bridge;
 mod file_watcher;
 pub mod history_store;
+mod pipeline;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use commands::{ConfigManagerState, HistoryStoreState};
 use config::ConfigManager;
+use event_bridge::TauriEventEmitter;
 use history_store::HistoryStore;
 use tauri::Manager as _;
 
@@ -23,11 +26,10 @@ fn main() {
 
             let config_path = app_data_dir.join("config.json");
             let config_manager = ConfigManager::new(config_path);
-            let reset_time = config_manager
-                .load()
-                .ok()
-                .flatten()
-                .map(|c| c.reset_time)
+            let loaded_config = config_manager.load().ok().flatten();
+            let reset_time = loaded_config
+                .as_ref()
+                .map(|c| c.reset_time.clone())
                 .unwrap_or_else(|| "05:00".to_string());
             app.manage(ConfigManagerState(Mutex::new(config_manager)));
 
@@ -36,7 +38,22 @@ fn main() {
             if let Err(e) = store.restore() {
                 eprintln!("failed to restore history: {e}");
             }
-            app.manage(HistoryStoreState(Mutex::new(store)));
+            let store = Arc::new(Mutex::new(store));
+            app.manage(HistoryStoreState(Arc::clone(&store)));
+
+            // Start the pipeline if config is available
+            if let Some(ref config) = loaded_config {
+                let emitter = Arc::new(TauriEventEmitter::new(app.handle().clone()));
+                match pipeline::start_pipeline(config, Arc::clone(&store), emitter) {
+                    Ok(handle) => {
+                        // Store the handle so it lives as long as the app
+                        app.manage(handle);
+                    }
+                    Err(e) => {
+                        eprintln!("failed to start pipeline: {e}");
+                    }
+                }
+            }
 
             Ok(())
         })

@@ -1,8 +1,3 @@
-#![allow(
-    dead_code,
-    reason = "public API for DB monitoring pipeline, not yet consumed"
-)]
-
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::Duration;

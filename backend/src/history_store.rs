@@ -108,6 +108,10 @@ impl HistoryStore {
         }
     }
 
+    pub fn history_path(&self) -> &std::path::Path {
+        &self.history_path
+    }
+
     pub fn set_reset_time(&mut self, reset_time: &str) {
         self.reset_time = reset_time.to_string();
     }

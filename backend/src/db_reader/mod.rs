@@ -1,16 +1,10 @@
-#![allow(
-    dead_code,
-    unused_imports,
-    reason = "public API for DiffDetector/ConfigManager, not yet consumed"
-)]
-
 mod best_score;
 mod score_log;
 mod song_metadata;
 
-pub use best_score::{BestScore, read_all_best_scores, read_best_score};
-pub use score_log::{ScoreLog, read_score_log};
-pub use song_metadata::{SongMetadata, read_song_metadata};
+pub use best_score::{BestScore, read_all_best_scores};
+pub use score_log::read_score_log;
+pub use song_metadata::read_song_metadata;
 
 use std::path::Path;
 use std::time::Duration;
@@ -98,24 +92,9 @@ pub fn read_all_score_data_logs(path: &Path) -> Result<Vec<ScoreDataLog>, DBErro
     rows.collect::<Result<Vec<_>, _>>().map_err(DBError::from)
 }
 
-pub fn validate_db_paths(player_dir: &Path, song_db_path: &Path) -> Result<(), DBError> {
-    let scoredatalog_path = player_dir.join("scoredatalog.db");
-    if !scoredatalog_path.exists() {
-        return Err(DBError::FileNotFound(
-            scoredatalog_path.display().to_string(),
-        ));
-    }
-    if !song_db_path.exists() {
-        return Err(DBError::FileNotFound(song_db_path.display().to_string()));
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use std::fs;
 
     use indoc::indoc;
     use rstest::{fixture, rstest};
@@ -319,42 +298,6 @@ mod tests {
             [],
         );
         assert!(result.is_err());
-    }
-
-    #[rstest]
-    fn test_validate_db_paths_success(test_db: TestDb) {
-        let player_dir = test_db.dir.path();
-        let song_db_path = test_db.dir.path().join("songdata.db");
-        fs::write(&song_db_path, "").expect("failed to create songdata.db");
-
-        let result = validate_db_paths(player_dir, &song_db_path);
-        assert!(result.is_ok());
-    }
-
-    #[rstest]
-    #[case::missing_scoredatalog(false, true, "scoredatalog")]
-    #[case::missing_songdata(true, false, "songdata")]
-    fn test_validate_db_paths_missing_files(
-        #[case] create_scoredatalog: bool,
-        #[case] create_songdata: bool,
-        #[case] expected_error_part: &str,
-    ) {
-        let dir = tempfile::tempdir().expect("failed to create temp dir");
-        let player_dir = dir.path();
-        let song_db_path = player_dir.join("songdata.db");
-
-        if create_scoredatalog {
-            fs::write(player_dir.join("scoredatalog.db"), "")
-                .expect("failed to create scoredatalog.db");
-        }
-        if create_songdata {
-            fs::write(&song_db_path, "").expect("failed to create songdata.db");
-        }
-
-        let result = validate_db_paths(player_dir, &song_db_path);
-        assert!(
-            matches!(&result, Err(DBError::FileNotFound(p)) if p.contains(expected_error_part))
-        );
     }
 
     #[rstest]
