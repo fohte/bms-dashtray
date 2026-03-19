@@ -8,7 +8,7 @@ remotes:
 pre-commit:
   commands:
     format:
-      exclude: 'backend/gen/schemas/*'
+      exclude: 'backend/gen/schemas/.*'
     ast-grep:
       glob: '*.rs'
       run: ast-grep scan {staged_files}
