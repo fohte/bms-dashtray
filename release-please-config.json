@@ -18,15 +18,13 @@
     "frontend": {
       "release-type": "simple",
       "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": true,
-      "component": "frontend"
+      "bump-patch-for-minor-pre-major": true
     },
 
     "backend": {
       "release-type": "simple",
       "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": true,
-      "component": "backend"
+      "bump-patch-for-minor-pre-major": true
     }
   }
 }
