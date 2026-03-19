@@ -34,6 +34,13 @@ const CLEAR_LAMP_COLORS: Record<number, string> = {
   10: '#FBBF24',
 }
 
+const CLEAR_LAMP_ALT_COLORS: Record<number, string> = {
+  7: '#EF4444',
+  8: '#3B82F6',
+  9: '#FFFFFF',
+  10: '#FFFFFF',
+}
+
 const FLASHING_CLEARS = new Set([7, 8, 9, 10])
 
 const DIFFICULTY_NAMES: Record<number, string> = {
@@ -76,12 +83,20 @@ function formatDiff(
   return { text: `${sign}${String(diff)}`, color }
 }
 
-const flashingKeyframes = `
-@keyframes lampFlash {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+function generateFlashKeyframes(): string {
+  return Object.entries(CLEAR_LAMP_ALT_COLORS)
+    .map(([clear, altColor]) => {
+      const mainColor = CLEAR_LAMP_COLORS[Number(clear)]!
+      return `
+@keyframes lampFlash${clear} {
+  0%, 49% { background-color: ${mainColor}; }
+  50%, 100% { background-color: ${altColor}; }
+}`
+    })
+    .join('\n')
 }
-`
+
+const flashingKeyframes = generateFlashKeyframes()
 
 const styles = {
   container: {
@@ -101,9 +116,6 @@ const styles = {
     height: '32px',
     borderRadius: '2px',
     flexShrink: 0,
-  },
-  lampBarFlashing: {
-    animation: 'lampFlash 1.2s ease-in-out infinite',
   },
   content: {
     flex: 1,
@@ -217,25 +229,46 @@ const styles = {
 } satisfies Record<string, CSSProperties>
 
 function LampBar({
+  clear,
   currentColor,
   previousColor,
   flashing,
 }: {
+  clear: number
   currentColor: string
   previousColor: string | null
   flashing: boolean
 }) {
-  const flashStyle = flashing ? styles.lampBarFlashing : {}
+  const flashAnimation = flashing
+    ? `lampFlash${clear} 200ms step-end infinite`
+    : undefined
 
   if (previousColor != null && previousColor !== currentColor) {
     return (
       <div
         style={{
           ...styles.lampBar,
-          ...flashStyle,
-          background: `linear-gradient(to bottom, ${previousColor} 50%, ${currentColor} 50%)`,
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'none',
         }}
-      />
+      >
+        <div
+          style={{
+            flex: 1,
+            borderRadius: '2px 2px 0 0',
+            backgroundColor: previousColor,
+          }}
+        />
+        <div
+          style={{
+            flex: 1,
+            borderRadius: '0 0 2px 2px',
+            backgroundColor: currentColor,
+            animation: flashAnimation,
+          }}
+        />
+      </div>
     )
   }
 
@@ -243,8 +276,8 @@ function LampBar({
     <div
       style={{
         ...styles.lampBar,
-        ...flashStyle,
         backgroundColor: currentColor,
+        animation: flashAnimation,
       }}
     />
   )
@@ -276,6 +309,7 @@ function PlayHistoryEntry({
   return (
     <div style={{ ...styles.entry, backgroundColor: bgColor }}>
       <LampBar
+        clear={record.clear}
         currentColor={lampColor}
         previousColor={clearUpdated ? previousLampColor : null}
         flashing={flashing}
