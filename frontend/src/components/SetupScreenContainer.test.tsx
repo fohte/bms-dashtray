@@ -10,6 +10,8 @@ function createMockApi(overrides: Partial<TauriApi> = {}): TauriApi {
     getConfig: vi.fn().mockResolvedValue(null),
     validateAndSaveConfig: vi.fn().mockResolvedValue(undefined),
     openFolderDialog: vi.fn().mockResolvedValue(null),
+    getTodayRecords: vi.fn().mockResolvedValue([]),
+    listenScoresUpdated: vi.fn().mockResolvedValue(vi.fn()),
     ...overrides,
   }
 }
