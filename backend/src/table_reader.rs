@@ -158,6 +158,7 @@ mod tests {
 
     use flate2::Compression;
     use flate2::write::GzEncoder;
+    use indoc::indoc;
     use rstest::{fixture, rstest};
     use std::io::Write as _;
     use tempfile::TempDir;
@@ -177,13 +178,15 @@ mod tests {
 
     #[rstest]
     fn test_read_bmt_file_parses_correctly(table_dir: TempDir) {
-        let json = r#"{
-            "header": {"name": "Satellite", "tag": "st", "symbol": ""},
-            "body": [
-                {"md5": "aaa", "sha256": "sha_aaa", "level": "3"},
-                {"md5": "bbb", "sha256": "sha_bbb", "level": "5"}
-            ]
-        }"#;
+        let json = indoc! {r#"
+            {
+                "header": {"name": "Satellite", "tag": "st", "symbol": ""},
+                "body": [
+                    {"md5": "aaa", "sha256": "sha_aaa", "level": "3"},
+                    {"md5": "bbb", "sha256": "sha_bbb", "level": "5"}
+                ]
+            }
+        "#};
         write_bmt(table_dir.path(), "test.bmt", json);
 
         let table = read_bmt_file(&table_dir.path().join("test.bmt")).unwrap();
@@ -195,13 +198,15 @@ mod tests {
 
     #[rstest]
     fn test_build_table_level_map_basic(table_dir: TempDir) {
-        let json = r#"{
-            "header": {"name": "Satellite", "tag": "st", "symbol": ""},
-            "body": [
-                {"md5": "aaa", "sha256": "sha_aaa", "level": "3"},
-                {"md5": "bbb", "sha256": "sha_bbb", "level": "5"}
-            ]
-        }"#;
+        let json = indoc! {r#"
+            {
+                "header": {"name": "Satellite", "tag": "st", "symbol": ""},
+                "body": [
+                    {"md5": "aaa", "sha256": "sha_aaa", "level": "3"},
+                    {"md5": "bbb", "sha256": "sha_bbb", "level": "5"}
+                ]
+            }
+        "#};
         write_bmt(table_dir.path(), "table1.bmt", json);
 
         let map = build_table_level_map(table_dir.path()).unwrap();
@@ -212,14 +217,18 @@ mod tests {
 
     #[rstest]
     fn test_build_table_level_map_multiple_tables(table_dir: TempDir) {
-        let json1 = r#"{
-            "header": {"name": "Satellite", "tag": "st", "symbol": ""},
-            "body": [{"md5": "", "sha256": "sha_x", "level": "3"}]
-        }"#;
-        let json2 = r#"{
-            "header": {"name": "Insane", "tag": "", "symbol": "★"},
-            "body": [{"md5": "", "sha256": "sha_x", "level": "24"}]
-        }"#;
+        let json1 = indoc! {r#"
+            {
+                "header": {"name": "Satellite", "tag": "st", "symbol": ""},
+                "body": [{"md5": "", "sha256": "sha_x", "level": "3"}]
+            }
+        "#};
+        let json2 = indoc! {r#"
+            {
+                "header": {"name": "Insane", "tag": "", "symbol": "★"},
+                "body": [{"md5": "", "sha256": "sha_x", "level": "24"}]
+            }
+        "#};
         write_bmt(table_dir.path(), "satellite.bmt", json1);
         write_bmt(table_dir.path(), "insane.bmt", json2);
 
@@ -234,10 +243,12 @@ mod tests {
 
     #[rstest]
     fn test_build_table_level_map_uses_symbol_as_fallback(table_dir: TempDir) {
-        let json = r#"{
-            "header": {"name": "Test", "tag": "", "symbol": "◆"},
-            "body": [{"md5": "", "sha256": "sha_y", "level": "10"}]
-        }"#;
+        let json = indoc! {r#"
+            {
+                "header": {"name": "Test", "tag": "", "symbol": "◆"},
+                "body": [{"md5": "", "sha256": "sha_y", "level": "10"}]
+            }
+        "#};
         write_bmt(table_dir.path(), "test.bmt", json);
 
         let map = build_table_level_map(table_dir.path()).unwrap();
@@ -246,13 +257,15 @@ mod tests {
 
     #[rstest]
     fn test_build_table_level_map_skips_entries_without_sha256(table_dir: TempDir) {
-        let json = r#"{
-            "header": {"name": "Test", "tag": "t", "symbol": ""},
-            "body": [
-                {"md5": "only_md5", "sha256": "", "level": "1"},
-                {"md5": "", "sha256": "has_sha", "level": "2"}
-            ]
-        }"#;
+        let json = indoc! {r#"
+            {
+                "header": {"name": "Test", "tag": "t", "symbol": ""},
+                "body": [
+                    {"md5": "only_md5", "sha256": "", "level": "1"},
+                    {"md5": "", "sha256": "has_sha", "level": "2"}
+                ]
+            }
+        "#};
         write_bmt(table_dir.path(), "test.bmt", json);
 
         let map = build_table_level_map(table_dir.path()).unwrap();
@@ -282,10 +295,12 @@ mod tests {
     #[rstest]
     fn test_build_table_level_map_skips_malformed_bmt(table_dir: TempDir) {
         // Write valid table
-        let valid = r#"{
-            "header": {"name": "Good", "tag": "g", "symbol": ""},
-            "body": [{"md5": "", "sha256": "sha_good", "level": "1"}]
-        }"#;
+        let valid = indoc! {r#"
+            {
+                "header": {"name": "Good", "tag": "g", "symbol": ""},
+                "body": [{"md5": "", "sha256": "sha_good", "level": "1"}]
+            }
+        "#};
         write_bmt(table_dir.path(), "good.bmt", valid);
 
         // Write malformed file (not valid gzip)

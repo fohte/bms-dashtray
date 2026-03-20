@@ -113,6 +113,11 @@ pub fn start_pipeline(
         let mut store_guard = store
             .lock()
             .map_err(|e| PipelineError::MutexPoisoned(format!("history store: {e}")))?;
+
+        // Update restored records with table levels
+        let label_map = detector.table_level_labels();
+        store_guard.update_table_levels(&label_map);
+
         run_pipeline_cycle(
             &mut detector,
             &mut store_guard,
@@ -181,8 +186,7 @@ pub fn start_pipeline(
                 reload_table_levels(&mut det, &table_dir_clone);
 
                 // Update table_levels in existing store records
-                let label_map: std::collections::HashMap<String, Vec<String>> =
-                    det.table_level_labels().into_iter().collect();
+                let label_map = det.table_level_labels();
 
                 let mut store_guard = match store_for_table.lock() {
                     Ok(s) => s,
@@ -192,6 +196,9 @@ pub fn start_pipeline(
                     }
                 };
                 store_guard.update_table_levels(&label_map);
+                if let Err(e) = store_guard.persist() {
+                    eprintln!("failed to persist after table reload: {e}");
+                }
 
                 match store_guard.get_today_records() {
                     Ok(records) => {
