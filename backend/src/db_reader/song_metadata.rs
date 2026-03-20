@@ -5,6 +5,7 @@ use super::open_readonly;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SongMetadata {
     pub title: String,
+    pub subtitle: String,
     pub artist: String,
     pub level: i32,
     pub difficulty: i32,
@@ -22,17 +23,18 @@ pub fn read_song_metadata(
     let conn = open_readonly(path)?;
 
     let mut stmt = conn.prepare(
-        "SELECT title, artist, level, difficulty, notes, mode FROM song WHERE sha256 = ?1 LIMIT 1",
+        "SELECT title, subtitle, artist, level, difficulty, notes, mode FROM song WHERE sha256 = ?1 LIMIT 1",
     )?;
 
     let result = stmt.query_row([sha256], |row| {
         Ok(SongMetadata {
             title: row.get(0)?,
-            artist: row.get(1)?,
-            level: row.get(2)?,
-            difficulty: row.get(3)?,
-            notes: row.get(4)?,
-            mode: row.get(5)?,
+            subtitle: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
+            artist: row.get(2)?,
+            level: row.get(3)?,
+            difficulty: row.get(4)?,
+            notes: row.get(5)?,
+            mode: row.get(6)?,
         })
     });
 
@@ -113,6 +115,7 @@ mod tests {
         "abc123def456",
         Some(SongMetadata {
             title: "Test Song".to_string(),
+            subtitle: String::new(),
             artist: "Test Artist".to_string(),
             level: 12,
             difficulty: 1,

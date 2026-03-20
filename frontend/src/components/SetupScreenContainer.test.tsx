@@ -23,7 +23,7 @@ describe('SetupScreenContainer', () => {
     const api = createMockApi()
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
     expect(api.openFolderDialog).toHaveBeenCalledOnce()
   })
 
@@ -34,7 +34,7 @@ describe('SetupScreenContainer', () => {
     })
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     await waitFor(() => {
       expect(api.validateAndSaveConfig).toHaveBeenCalledWith(
@@ -49,7 +49,7 @@ describe('SetupScreenContainer', () => {
     })
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     await waitFor(() => {
       expect(screen.getByText('/path/to/beatoraja')).toBeInTheDocument()
@@ -63,14 +63,14 @@ describe('SetupScreenContainer', () => {
     })
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'START' })).toBeEnabled()
     })
   })
 
-  it('shows error on validation failure', async () => {
+  it('shows not-found files on validation failure', async () => {
     const api = createMockApi({
       openFolderDialog: vi.fn().mockResolvedValue('/wrong/path'),
       validateAndSaveConfig: vi
@@ -79,12 +79,13 @@ describe('SetupScreenContainer', () => {
     })
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     await waitFor(() => {
       expect(
-        screen.getByText('Missing: scoredatalog.db, score.db'),
+        screen.getByText('scoredatalog.db が見つかりません'),
       ).toBeInTheDocument()
+      expect(screen.getByText('score.db が見つかりません')).toBeInTheDocument()
     })
   })
 
@@ -96,7 +97,7 @@ describe('SetupScreenContainer', () => {
     })
     render(<SetupScreenContainer api={api} onSetupComplete={onSetupComplete} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'START' })).toBeEnabled()
@@ -112,7 +113,7 @@ describe('SetupScreenContainer', () => {
     })
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'BROWSE' }))
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     expect(api.validateAndSaveConfig).not.toHaveBeenCalled()
     expect(screen.getByText('Select folder...')).toBeInTheDocument()

@@ -15,13 +15,12 @@ const FILTERS: { type: FilterType; label: string }[] = [
 const styles = {
   container: {
     display: 'flex',
-    gap: '8px',
+    gap: '6px',
   },
   tab: {
-    padding: '6px 16px',
+    padding: '4px 10px',
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '11px',
-    fontWeight: 600,
+    fontSize: '9px',
     letterSpacing: '1px',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -33,11 +32,13 @@ const styles = {
     backgroundColor: '#ffffff',
     color: '#000000',
     borderColor: '#ffffff',
+    fontWeight: 700,
   },
   tabInactive: {
     backgroundColor: 'transparent',
-    color: '#888888',
+    color: '#64748B',
     borderColor: '#333333',
+    fontWeight: 600,
   },
 } satisfies Record<string, CSSProperties>
 

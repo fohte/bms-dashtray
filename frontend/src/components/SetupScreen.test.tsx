@@ -19,7 +19,7 @@ function renderSetupScreen(overrides: Partial<SetupScreenProps> = {}) {
 describe('SetupScreen', () => {
   it('renders the title and description', () => {
     renderSetupScreen()
-    expect(screen.getByText('BMS DASHTRAY')).toBeInTheDocument()
+    expect(screen.getByText('bms-dashtray')).toBeInTheDocument()
     expect(screen.getByText(/beatoraja/)).toBeInTheDocument()
   })
 
@@ -33,12 +33,37 @@ describe('SetupScreen', () => {
     expect(screen.getByText('/Users/player/beatoraja')).toBeInTheDocument()
   })
 
-  it('shows all four db file names', () => {
-    renderSetupScreen()
-    expect(screen.getByText('songdata.db')).toBeInTheDocument()
-    expect(screen.getByText('scoredatalog.db')).toBeInTheDocument()
-    expect(screen.getByText('score.db')).toBeInTheDocument()
-    expect(screen.getByText('scorelog.db')).toBeInTheDocument()
+  it('shows summary when all files are found', () => {
+    renderSetupScreen({
+      dbFileStatuses: [
+        { name: 'songdata.db', found: true },
+        { name: 'scoredatalog.db', found: true },
+        { name: 'score.db', found: true },
+        { name: 'scorelog.db', found: true },
+      ],
+    })
+    expect(
+      screen.getByText(
+        'songdata.db, scoredatalog.db, score.db, scorelog.db found',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('shows not-found files individually when some are missing', () => {
+    renderSetupScreen({
+      dbFileStatuses: [
+        { name: 'songdata.db', found: true },
+        { name: 'scoredatalog.db', found: false },
+        { name: 'score.db', found: false },
+        { name: 'scorelog.db', found: true },
+      ],
+    })
+    expect(
+      screen.getByText('scoredatalog.db が見つかりません'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('score.db が見つかりません')).toBeInTheDocument()
+    expect(screen.getByText('songdata.db found')).toBeInTheDocument()
+    expect(screen.getByText('scorelog.db found')).toBeInTheDocument()
   })
 
   it('disables START button when no validation has been done', () => {
@@ -75,17 +100,10 @@ describe('SetupScreen', () => {
     expect(screen.getByRole('button', { name: 'VALIDATING...' })).toBeDisabled()
   })
 
-  it('displays error message', () => {
-    renderSetupScreen({ error: 'Missing database files: score.db' })
-    expect(
-      screen.getByText('Missing database files: score.db'),
-    ).toBeInTheDocument()
-  })
-
   it('calls onSelectFolder when BROWSE is clicked', () => {
     const onSelectFolder = vi.fn()
     renderSetupScreen({ onSelectFolder })
-    screen.getByRole('button', { name: 'BROWSE' }).click()
+    screen.getByRole('button', { name: '...' }).click()
     expect(onSelectFolder).toHaveBeenCalledOnce()
   })
 

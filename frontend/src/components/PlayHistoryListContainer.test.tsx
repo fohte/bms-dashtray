@@ -17,6 +17,7 @@ function makeRecord(overrides: Partial<PlayRecord> = {}): PlayRecord {
     combo: 500,
     playedAt: '2026-03-20T15:30:00+09:00',
     title: 'Test Song',
+    subtitle: '',
     artist: 'Test Artist',
     level: 12,
     difficulty: 1,

@@ -44,7 +44,11 @@ const styles = {
     fontSize: '14px',
     fontWeight: 700,
     letterSpacing: '2px',
-    marginLeft: '12px',
+    flex: 1,
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    width: '60px',
   },
   content: {
     flex: 1,
@@ -98,14 +102,14 @@ const styles = {
     whiteSpace: 'nowrap',
   },
   changeButton: {
-    padding: '8px 12px',
-    backgroundColor: '#222222',
-    border: '1px solid #444444',
+    padding: '4px 8px',
+    backgroundColor: '#FFFFFF',
+    border: 'none',
     borderRadius: '4px',
-    color: '#ffffff',
+    color: '#000000',
     fontFamily: "'JetBrains Mono', monospace",
     fontSize: '11px',
-    fontWeight: 600,
+    fontWeight: 700,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     transition: 'background-color 0.15s',
@@ -168,10 +172,10 @@ const styles = {
     textAlign: 'center',
   },
   resetButton: {
-    width: '100%',
+    width: 'auto',
     padding: '10px',
     backgroundColor: 'transparent',
-    border: '2px solid #EF4444',
+    border: '1px solid #EF4444',
     borderRadius: '4px',
     color: '#EF4444',
     fontFamily: "'JetBrains Mono', monospace",
@@ -256,9 +260,10 @@ export function SettingsScreen({
     <div style={styles.container}>
       <div style={styles.header}>
         <button type="button" style={styles.backButton} onClick={onBack}>
-          &larr; BACK
+          {'< BACK'}
         </button>
-        <span style={styles.headerTitle}>SETTINGS</span>
+        <span style={styles.headerTitle as CSSProperties}>SETTINGS</span>
+        <div style={styles.headerSpacer} />
       </div>
 
       <div style={styles.content}>
@@ -272,7 +277,7 @@ export function SettingsScreen({
               style={styles.changeButton}
               onClick={onChangeBeatorajaRoot}
             >
-              CHANGE
+              ...
             </button>
           </div>
           <div style={styles.row}>
