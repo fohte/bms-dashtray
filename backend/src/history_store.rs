@@ -17,6 +17,7 @@ pub struct PlayRecord {
     pub combo: i32,
     pub played_at: String,
     pub title: String,
+    #[serde(default)]
     pub subtitle: String,
     pub artist: String,
     pub level: i32,
