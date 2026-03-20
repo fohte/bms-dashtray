@@ -173,8 +173,9 @@ pub fn start_pipeline(
         let emitter_for_table = Arc::clone(&emitter);
         let table_dir_clone = table_dir.clone();
 
-        match file_watcher::start_watching(
+        match file_watcher::start_watching_dir(
             table_dir,
+            "bmt",
             Box::new(move || {
                 let mut det = match detector_for_table.lock() {
                     Ok(d) => d,
