@@ -38,6 +38,7 @@ const styles = {
   container: {
     width: '100%',
     padding: '12px 16px',
+    boxSizing: 'border-box',
     fontFamily: "'JetBrains Mono', monospace",
   },
   header: {
