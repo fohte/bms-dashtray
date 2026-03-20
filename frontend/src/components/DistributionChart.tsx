@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import type { PlayRecord } from '@/types'
 
 export interface LevelDistribution {
-  level: number
+  label: string
   count: number
   percentage: number
 }
@@ -11,18 +11,20 @@ export interface LevelDistribution {
 export function aggregateLevelDistribution(
   records: PlayRecord[],
 ): LevelDistribution[] {
-  if (records.length === 0) return []
-
-  const countByLevel = new Map<number, number>()
+  const countByLabel = new Map<string, number>()
   for (const record of records) {
-    countByLevel.set(record.level, (countByLevel.get(record.level) ?? 0) + 1)
+    for (const label of record.tableLevels) {
+      countByLabel.set(label, (countByLabel.get(label) ?? 0) + 1)
+    }
   }
 
-  const total = records.length
-  return Array.from(countByLevel.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([level, count]) => ({
-      level,
+  if (countByLabel.size === 0) return []
+
+  const total = Array.from(countByLabel.values()).reduce((a, b) => a + b, 0)
+  return Array.from(countByLabel.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([label, count]) => ({
+      label,
       count,
       percentage: Math.round((count / total) * 100),
     }))
@@ -106,24 +108,24 @@ const styles = {
 export function DistributionChart({ records }: DistributionChartProps) {
   const distribution = aggregateLevelDistribution(records)
   const maxCount = Math.max(0, ...distribution.map((d) => d.count))
-  const total = records.length
+  const total = distribution.reduce((sum, d) => sum + d.count, 0)
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
         <span style={styles.headerLabel as CSSProperties}>
-          DIFFICULTY DISTRIBUTION
+          TABLE LEVEL DISTRIBUTION
         </span>
         <span style={styles.headerTotal}>{total} total</span>
       </div>
       {distribution.length === 0 ? (
-        <div style={styles.emptyMessage as CSSProperties}>No play data</div>
+        <div style={styles.emptyMessage as CSSProperties}>
+          No table level data
+        </div>
       ) : (
         distribution.map((item) => (
-          <div key={item.level} style={styles.row}>
-            <div style={styles.levelLabel as CSSProperties}>
-              Lv.{item.level}
-            </div>
+          <div key={item.label} style={styles.row}>
+            <div style={styles.levelLabel as CSSProperties}>{item.label}</div>
             <div style={styles.barContainer}>
               <div
                 style={{
@@ -132,7 +134,7 @@ export function DistributionChart({ records }: DistributionChartProps) {
                     maxCount > 0 ? `${(item.count / maxCount) * 100}%` : '0%',
                 }}
                 role="meter"
-                aria-label={`Lv.${item.level}`}
+                aria-label={item.label}
                 aria-valuenow={item.count}
                 aria-valuemin={0}
                 aria-valuemax={maxCount}

@@ -36,76 +36,88 @@ describe('aggregateLevelDistribution', () => {
     expect(aggregateLevelDistribution([])).toEqual([])
   })
 
-  it('counts records by level and sorts ascending', () => {
+  it('returns empty array when no records have tableLevels', () => {
+    const records = [makeRecord(), makeRecord()]
+    expect(aggregateLevelDistribution(records)).toEqual([])
+  })
+
+  it('counts records by table level label and sorts alphabetically', () => {
     const records = [
-      makeRecord({ level: 12 }),
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 12 }),
+      makeRecord({ tableLevels: ['★24'] }),
+      makeRecord({ tableLevels: ['st3'] }),
+      makeRecord({ tableLevels: ['st3'] }),
+      makeRecord({ tableLevels: ['★24'] }),
+      makeRecord({ tableLevels: ['★24'] }),
     ]
     const result = aggregateLevelDistribution(records)
     expect(result).toEqual([
-      { level: 10, count: 3, percentage: 60 },
-      { level: 12, count: 2, percentage: 40 },
+      { label: '★24', count: 3, percentage: 60 },
+      { label: 'st3', count: 2, percentage: 40 },
     ])
   })
 
-  it('rounds percentage to nearest integer', () => {
+  it('counts each table level separately for multi-table records', () => {
     const records = [
-      makeRecord({ level: 1 }),
-      makeRecord({ level: 2 }),
-      makeRecord({ level: 3 }),
+      makeRecord({ tableLevels: ['st3', 'sl5'] }),
+      makeRecord({ tableLevels: ['st3'] }),
     ]
     const result = aggregateLevelDistribution(records)
     expect(result).toEqual([
-      { level: 1, count: 1, percentage: 33 },
-      { level: 2, count: 1, percentage: 33 },
-      { level: 3, count: 1, percentage: 33 },
+      { label: 'sl5', count: 1, percentage: 33 },
+      { label: 'st3', count: 2, percentage: 67 },
     ])
+  })
+
+  it('excludes records without tableLevels from aggregation', () => {
+    const records = [
+      makeRecord({ tableLevels: ['★12'] }),
+      makeRecord({ tableLevels: [] }),
+    ]
+    const result = aggregateLevelDistribution(records)
+    expect(result).toEqual([{ label: '★12', count: 1, percentage: 100 }])
   })
 })
 
 describe('DistributionChart', () => {
-  it('renders "No play data" when records are empty', () => {
-    render(<DistributionChart records={[]} />)
-    expect(screen.getByText('No play data')).toBeInTheDocument()
+  it('renders "No table level data" when no records have tableLevels', () => {
+    render(<DistributionChart records={[makeRecord()]} />)
+    expect(screen.getByText('No table level data')).toBeInTheDocument()
   })
 
-  it('renders level labels and counts', () => {
+  it('renders table level labels and counts', () => {
     const records = [
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 11 }),
+      makeRecord({ tableLevels: ['st3'] }),
+      makeRecord({ tableLevels: ['st3'] }),
+      makeRecord({ tableLevels: ['★24'] }),
     ]
     render(<DistributionChart records={records} />)
-    expect(screen.getByText('Lv.10')).toBeInTheDocument()
-    expect(screen.getByText('Lv.11')).toBeInTheDocument()
+    expect(screen.getByText('st3')).toBeInTheDocument()
+    expect(screen.getByText('★24')).toBeInTheDocument()
     expect(screen.getByText('2')).toBeInTheDocument()
     expect(screen.getByText('1')).toBeInTheDocument()
   })
 
   it('renders the section header', () => {
     render(<DistributionChart records={[]} />)
-    expect(screen.getByText('DIFFICULTY DISTRIBUTION')).toBeInTheDocument()
+    expect(screen.getByText('TABLE LEVEL DISTRIBUTION')).toBeInTheDocument()
   })
 
   it('renders bar elements with correct aria attributes', () => {
     const records = [
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 11 }),
+      makeRecord({ tableLevels: ['st3'] }),
+      makeRecord({ tableLevels: ['st3'] }),
+      makeRecord({ tableLevels: ['★24'] }),
     ]
     render(<DistributionChart records={records} />)
     const meters = screen.getAllByRole('meter')
     expect(meters).toHaveLength(2)
 
-    const lv10Meter = screen.getByRole('meter', { name: 'Lv.10' })
-    expect(lv10Meter).toHaveAttribute('aria-valuenow', '2')
-    expect(lv10Meter).toHaveAttribute('aria-valuemax', '2')
+    const st3Meter = screen.getByRole('meter', { name: 'st3' })
+    expect(st3Meter).toHaveAttribute('aria-valuenow', '2')
+    expect(st3Meter).toHaveAttribute('aria-valuemax', '2')
 
-    const lv11Meter = screen.getByRole('meter', { name: 'Lv.11' })
-    expect(lv11Meter).toHaveAttribute('aria-valuenow', '1')
-    expect(lv11Meter).toHaveAttribute('aria-valuemax', '2')
+    const starMeter = screen.getByRole('meter', { name: '★24' })
+    expect(starMeter).toHaveAttribute('aria-valuenow', '1')
+    expect(starMeter).toHaveAttribute('aria-valuemax', '2')
   })
 })

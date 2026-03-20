@@ -38,12 +38,12 @@ type Story = StoryObj<typeof meta>
 export const FewLevels: Story = {
   args: {
     records: [
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 11 }),
-      makeRecord({ level: 11 }),
-      makeRecord({ level: 12 }),
+      makeRecord({ tableLevels: ['st3'] }),
+      makeRecord({ tableLevels: ['st3'] }),
+      makeRecord({ tableLevels: ['st3'] }),
+      makeRecord({ tableLevels: ['★24'] }),
+      makeRecord({ tableLevels: ['★24'] }),
+      makeRecord({ tableLevels: ['sl5'] }),
     ],
   },
 }
@@ -51,36 +51,41 @@ export const FewLevels: Story = {
 export const ManyLevels: Story = {
   args: {
     records: [
-      makeRecord({ level: 1 }),
-      makeRecord({ level: 2 }),
-      makeRecord({ level: 2 }),
-      makeRecord({ level: 3 }),
-      makeRecord({ level: 3 }),
-      makeRecord({ level: 3 }),
-      makeRecord({ level: 5 }),
-      makeRecord({ level: 5 }),
-      makeRecord({ level: 7 }),
-      makeRecord({ level: 7 }),
-      makeRecord({ level: 7 }),
-      makeRecord({ level: 7 }),
-      makeRecord({ level: 8 }),
-      makeRecord({ level: 8 }),
-      makeRecord({ level: 9 }),
-      makeRecord({ level: 9 }),
-      makeRecord({ level: 9 }),
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 10 }),
-      makeRecord({ level: 11 }),
-      makeRecord({ level: 11 }),
-      makeRecord({ level: 11 }),
-      makeRecord({ level: 11 }),
-      makeRecord({ level: 12 }),
-      makeRecord({ level: 12 }),
-      makeRecord({ level: 12 }),
+      makeRecord({ tableLevels: ['st1'] }),
+      makeRecord({ tableLevels: ['st2'] }),
+      makeRecord({ tableLevels: ['st2'] }),
+      makeRecord({ tableLevels: ['st3'] }),
+      makeRecord({ tableLevels: ['st3'] }),
+      makeRecord({ tableLevels: ['st3'] }),
+      makeRecord({ tableLevels: ['sl3'] }),
+      makeRecord({ tableLevels: ['sl3'] }),
+      makeRecord({ tableLevels: ['★20'] }),
+      makeRecord({ tableLevels: ['★20'] }),
+      makeRecord({ tableLevels: ['★20'] }),
+      makeRecord({ tableLevels: ['★20'] }),
+      makeRecord({ tableLevels: ['★22'] }),
+      makeRecord({ tableLevels: ['★22'] }),
+      makeRecord({ tableLevels: ['★24'] }),
+      makeRecord({ tableLevels: ['★24'] }),
+      makeRecord({ tableLevels: ['★24'] }),
+      makeRecord({ tableLevels: ['★25'] }),
     ],
+  },
+}
+
+export const MultiTableRecords: Story = {
+  args: {
+    records: [
+      makeRecord({ tableLevels: ['st3', 'sl5'] }),
+      makeRecord({ tableLevels: ['st3', '★24'] }),
+      makeRecord({ tableLevels: ['★24'] }),
+    ],
+  },
+}
+
+export const NoTableLevels: Story = {
+  args: {
+    records: [makeRecord(), makeRecord(), makeRecord()],
   },
 }
 
