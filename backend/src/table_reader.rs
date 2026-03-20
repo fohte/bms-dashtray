@@ -267,11 +267,12 @@ mod tests {
     #[case::empty_dir(true)]
     #[case::nonexistent_dir(false)]
     fn test_build_table_level_map_returns_empty(#[case] create_dir: bool) {
-        let dir = if create_dir {
+        let (_guard, dir) = if create_dir {
             let d = tempfile::tempdir().unwrap();
-            d.path().to_path_buf()
+            let p = d.path().to_path_buf();
+            (Some(d), p)
         } else {
-            PathBuf::from("/nonexistent/table/dir")
+            (None, PathBuf::from("/nonexistent/table/dir"))
         };
         let map = build_table_level_map(&dir).unwrap();
         assert!(map.is_empty());
