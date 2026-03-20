@@ -114,9 +114,11 @@ pub fn start_pipeline(
             .lock()
             .map_err(|e| PipelineError::MutexPoisoned(format!("history store: {e}")))?;
 
-        // Update restored records with table levels
+        // Update restored records with table levels and persist immediately
+        // so the on-disk history file stays consistent even if no new plays occur.
         let label_map = detector.table_level_labels();
         store_guard.update_table_levels(&label_map);
+        store_guard.persist()?;
 
         run_pipeline_cycle(
             &mut detector,
