@@ -6,6 +6,7 @@ use crate::db_reader::{
     read_song_metadata,
 };
 use crate::history_store::PlayRecord;
+use crate::table_reader::TableLevel;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DiffError {
@@ -24,6 +25,8 @@ pub struct DiffDetector {
     best_cache: HashMap<ChartKey, BestScore>,
     /// Whether this is the first read (no previous snapshot exists)
     is_first_read: bool,
+    /// Difficulty table levels: sha256 -> Vec<TableLevel>
+    table_levels: HashMap<String, Vec<TableLevel>>,
 }
 
 /// DB paths required by DiffDetector.
@@ -46,7 +49,26 @@ impl DiffDetector {
             snapshot: HashMap::new(),
             best_cache: HashMap::new(),
             is_first_read: true,
+            table_levels: HashMap::new(),
         }
+    }
+
+    /// Sets the difficulty table level lookup map.
+    pub fn set_table_levels(&mut self, table_levels: HashMap<String, Vec<TableLevel>>) {
+        self.table_levels = table_levels;
+    }
+
+    /// Returns a map of sha256 -> Vec<label string> for use in updating store records.
+    pub fn table_level_labels(&self) -> HashMap<String, Vec<String>> {
+        self.table_levels
+            .iter()
+            .map(|(sha256, levels)| {
+                (
+                    sha256.clone(),
+                    levels.iter().map(|l| l.label.clone()).collect(),
+                )
+            })
+            .collect()
     }
 
     /// Load initial best score cache from score.db.
@@ -145,6 +167,12 @@ impl DiffDetector {
                 None => (String::new(), String::new(), String::new(), 0, 0),
             };
 
+            let table_levels = self
+                .table_levels
+                .get(&play.sha256)
+                .map(|levels| levels.iter().map(|l| l.label.clone()).collect())
+                .unwrap_or_default();
+
             records.push(PlayRecord {
                 id: uuid::Uuid::new_v4().to_string(),
                 sha256: play.sha256.clone(),
@@ -160,6 +188,7 @@ impl DiffDetector {
                 artist,
                 level,
                 difficulty,
+                table_levels,
                 previous_clear: previous.as_ref().map(|p| p.clear),
                 previous_ex_score: previous.as_ref().map(|p| p.ex_score),
                 previous_min_bp: previous.as_ref().map(|p| p.min_bp),

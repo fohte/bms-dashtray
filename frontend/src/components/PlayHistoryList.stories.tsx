@@ -30,6 +30,7 @@ function makeRecord(overrides: Partial<PlayRecord> = {}): PlayRecord {
     artist: 'Example Artist',
     level: 12,
     difficulty: 1,
+    tableLevels: [],
     previousClear: 5,
     previousExScore: 1200,
     previousMinBp: 18,

@@ -313,7 +313,15 @@ function PlayHistoryEntry({
             )}
           </div>
           <div style={styles.clearRow}>
-            <span style={styles.level}>Lv.{record.level}</span>
+            {record.tableLevels.length > 0 ? (
+              record.tableLevels.map((tl) => (
+                <span key={tl} style={styles.level}>
+                  {tl}
+                </span>
+              ))
+            ) : (
+              <span style={styles.level}>Lv.{record.level}</span>
+            )}
             <span style={{ ...styles.clearName, color: lampColor }}>
               {clearName}
             </span>
