@@ -197,22 +197,26 @@ mod tests {
     }
 
     #[rstest]
-    fn test_build_table_level_map_basic(table_dir: TempDir) {
-        let json = indoc! {r#"
-            {
-                "header": {"name": "Satellite", "tag": "st", "symbol": ""},
-                "body": [
-                    {"md5": "aaa", "sha256": "sha_aaa", "level": "3"},
-                    {"md5": "bbb", "sha256": "sha_bbb", "level": "5"}
-                ]
-            }
-        "#};
-        write_bmt(table_dir.path(), "table1.bmt", json);
+    #[case::tag_prefix(
+        r#"{"header": {"tag": "st", "symbol": ""}, "body": [{"sha256": "sha_a", "level": "3"}]}"#,
+        "sha_a",
+        "st3"
+    )]
+    #[case::symbol_fallback(
+        r#"{"header": {"tag": "", "symbol": "◆"}, "body": [{"sha256": "sha_b", "level": "10"}]}"#,
+        "sha_b",
+        "◆10"
+    )]
+    fn test_build_table_level_map_label_prefix(
+        table_dir: TempDir,
+        #[case] json: &str,
+        #[case] sha256: &str,
+        #[case] expected_label: &str,
+    ) {
+        write_bmt(table_dir.path(), "table.bmt", json);
 
         let map = build_table_level_map(table_dir.path()).unwrap();
-        assert_eq!(map.get("sha_aaa").unwrap().len(), 1);
-        assert_eq!(map.get("sha_aaa").unwrap()[0].label, "st3");
-        assert_eq!(map.get("sha_bbb").unwrap()[0].label, "st5");
+        assert_eq!(map.get(sha256).unwrap()[0].label, expected_label);
     }
 
     #[rstest]
@@ -242,20 +246,6 @@ mod tests {
     }
 
     #[rstest]
-    fn test_build_table_level_map_uses_symbol_as_fallback(table_dir: TempDir) {
-        let json = indoc! {r#"
-            {
-                "header": {"name": "Test", "tag": "", "symbol": "◆"},
-                "body": [{"md5": "", "sha256": "sha_y", "level": "10"}]
-            }
-        "#};
-        write_bmt(table_dir.path(), "test.bmt", json);
-
-        let map = build_table_level_map(table_dir.path()).unwrap();
-        assert_eq!(map.get("sha_y").unwrap()[0].label, "◆10");
-    }
-
-    #[rstest]
     fn test_build_table_level_map_skips_entries_without_sha256(table_dir: TempDir) {
         let json = indoc! {r#"
             {
@@ -274,14 +264,16 @@ mod tests {
     }
 
     #[rstest]
-    fn test_build_table_level_map_empty_dir(table_dir: TempDir) {
-        let map = build_table_level_map(table_dir.path()).unwrap();
-        assert!(map.is_empty());
-    }
-
-    #[rstest]
-    fn test_build_table_level_map_nonexistent_dir() {
-        let map = build_table_level_map(Path::new("/nonexistent/table/dir")).unwrap();
+    #[case::empty_dir(true)]
+    #[case::nonexistent_dir(false)]
+    fn test_build_table_level_map_returns_empty(#[case] create_dir: bool) {
+        let dir = if create_dir {
+            let d = tempfile::tempdir().unwrap();
+            d.path().to_path_buf()
+        } else {
+            PathBuf::from("/nonexistent/table/dir")
+        };
+        let map = build_table_level_map(&dir).unwrap();
         assert!(map.is_empty());
     }
 

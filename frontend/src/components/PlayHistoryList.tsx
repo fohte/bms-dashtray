@@ -314,8 +314,8 @@ function PlayHistoryEntry({
           </div>
           <div style={styles.clearRow}>
             {record.tableLevels.length > 0 ? (
-              record.tableLevels.map((tl) => (
-                <span key={tl} style={styles.level}>
+              record.tableLevels.map((tl, i) => (
+                <span key={i} style={styles.level}>
                   {tl}
                 </span>
               ))
