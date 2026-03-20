@@ -6,6 +6,7 @@ use crate::diff_detector::{DbPaths, DiffDetector};
 use crate::event_bridge::{EventEmitter, ScoresUpdatedPayload};
 use crate::file_watcher::{self, WatchHandle};
 use crate::history_store::HistoryStore;
+use crate::table_reader;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
@@ -15,6 +16,8 @@ pub enum PipelineError {
     Store(#[from] crate::history_store::StoreError),
     #[error("file watcher error: {0}")]
     Watch(#[from] crate::file_watcher::WatchError),
+    #[error("table reader error: {0}")]
+    Table(#[from] crate::table_reader::TableReaderError),
     #[error("mutex poisoned: {0}")]
     MutexPoisoned(String),
 }
@@ -68,16 +71,34 @@ fn run_pipeline_cycle(
     Ok(())
 }
 
-/// Starts the full pipeline: initial DB read + file watcher.
+/// Holds all watcher handles. Dropping this stops all watchers.
+pub struct PipelineHandle {
+    _scoredatalog_watcher: WatchHandle,
+    _table_watcher: Option<WatchHandle>,
+}
+
+/// Reloads table levels from .bmt files and updates the detector.
+fn reload_table_levels(detector: &mut DiffDetector, table_dir: &std::path::Path) {
+    match table_reader::build_table_level_map(table_dir) {
+        Ok(map) => detector.set_table_levels(map),
+        Err(e) => eprintln!("failed to load table levels: {e}"),
+    }
+}
+
+/// Starts the full pipeline: initial DB read + file watchers for scoredatalog and table directory.
 ///
-/// Returns a `WatchHandle` that keeps the watcher alive. Dropping it stops the pipeline.
+/// Returns a `PipelineHandle` that keeps the watchers alive. Dropping it stops the pipeline.
 pub fn start_pipeline(
     config: &AppConfig,
     store: Arc<Mutex<HistoryStore>>,
     emitter: Arc<dyn EventEmitter>,
-) -> Result<WatchHandle, PipelineError> {
+) -> Result<PipelineHandle, PipelineError> {
     let mut detector = DiffDetector::new();
     detector.load_best_scores(&config.score_db_path())?;
+
+    // Load difficulty table levels
+    let table_dir = table_reader::table_dir_path(&config.beatoraja_root);
+    reload_table_levels(&mut detector, &table_dir);
 
     // Build restored keys before initial read
     let restored_keys = {
@@ -92,6 +113,13 @@ pub fn start_pipeline(
         let mut store_guard = store
             .lock()
             .map_err(|e| PipelineError::MutexPoisoned(format!("history store: {e}")))?;
+
+        // Update restored records with table levels and persist immediately
+        // so the on-disk history file stays consistent even if no new plays occur.
+        let label_map = detector.table_level_labels();
+        store_guard.update_table_levels(&label_map);
+        store_guard.persist()?;
+
         run_pipeline_cycle(
             &mut detector,
             &mut store_guard,
@@ -103,20 +131,25 @@ pub fn start_pipeline(
 
     let scoredatalog_path = config.scoredatalog_db_path();
     let config_clone = config.clone();
-    let detector = Mutex::new(detector);
+    let detector = Arc::new(Mutex::new(detector));
     let empty_keys: HashSet<(String, i32, String)> = HashSet::new();
 
-    let handle = file_watcher::start_watching(
+    let detector_for_score = Arc::clone(&detector);
+    let store_for_score = Arc::clone(&store);
+    let emitter_for_score = Arc::clone(&emitter);
+    let config_for_score = config_clone.clone();
+
+    let scoredatalog_handle = file_watcher::start_watching(
         scoredatalog_path,
         Box::new(move || {
-            let mut det = match detector.lock() {
+            let mut det = match detector_for_score.lock() {
                 Ok(d) => d,
                 Err(e) => {
                     eprintln!("failed to lock detector: {e}");
                     return;
                 }
             };
-            let mut store_guard = match store.lock() {
+            let mut store_guard = match store_for_score.lock() {
                 Ok(s) => s,
                 Err(e) => {
                     eprintln!("failed to lock store: {e}");
@@ -126,8 +159,8 @@ pub fn start_pipeline(
             if let Err(e) = run_pipeline_cycle(
                 &mut det,
                 &mut store_guard,
-                emitter.as_ref(),
-                &config_clone,
+                emitter_for_score.as_ref(),
+                &config_for_score,
                 &empty_keys,
             ) {
                 eprintln!("pipeline error: {e}");
@@ -135,7 +168,70 @@ pub fn start_pipeline(
         }),
     )?;
 
-    Ok(handle)
+    // Watch table directory for .bmt file changes
+    let table_handle = if table_dir.exists() {
+        let detector_for_table = Arc::clone(&detector);
+        let store_for_table = Arc::clone(&store);
+        let emitter_for_table = Arc::clone(&emitter);
+        let table_dir_clone = table_dir.clone();
+
+        match file_watcher::start_watching_dir(
+            table_dir,
+            "bmt",
+            Box::new(move || {
+                let mut det = match detector_for_table.lock() {
+                    Ok(d) => d,
+                    Err(e) => {
+                        eprintln!("failed to lock detector for table reload: {e}");
+                        return;
+                    }
+                };
+                reload_table_levels(&mut det, &table_dir_clone);
+
+                // Update table_levels in existing store records
+                let label_map = det.table_level_labels();
+
+                let mut store_guard = match store_for_table.lock() {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!("failed to lock store for table reload: {e}");
+                        return;
+                    }
+                };
+                store_guard.update_table_levels(&label_map);
+                if let Err(e) = store_guard.persist() {
+                    eprintln!("failed to persist after table reload: {e}");
+                }
+
+                match store_guard.get_today_records() {
+                    Ok(records) => {
+                        let now = chrono::Local::now();
+                        let payload = ScoresUpdatedPayload {
+                            records,
+                            updated_at: now.to_rfc3339(),
+                        };
+                        if let Err(e) = emitter_for_table.emit_scores_updated(payload) {
+                            eprintln!("failed to emit scores-updated after table reload: {e}");
+                        }
+                    }
+                    Err(e) => eprintln!("failed to get today records for table reload: {e}"),
+                }
+            }),
+        ) {
+            Ok(h) => Some(h),
+            Err(e) => {
+                eprintln!("failed to watch table directory: {e}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    Ok(PipelineHandle {
+        _scoredatalog_watcher: scoredatalog_handle,
+        _table_watcher: table_handle,
+    })
 }
 
 #[cfg(test)]

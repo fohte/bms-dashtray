@@ -96,6 +96,54 @@ pub fn start_watching(
     })
 }
 
+/// Start watching a directory for file modifications. Calls `callback` (debounced to 1 s)
+/// whenever a file with the given extension is created, modified, or removed.
+pub fn start_watching_dir(
+    dir: PathBuf,
+    extension: &str,
+    callback: Box<dyn Fn() + Send>,
+) -> Result<WatchHandle, WatchError> {
+    let (tx, rx) = mpsc::channel::<()>();
+    let ext = std::ffi::OsString::from(extension);
+
+    let mut watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
+        if let Ok(event) = res {
+            let is_modify = matches!(
+                event.kind,
+                EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_)
+            );
+            if !is_modify {
+                return;
+            }
+
+            let matches_ext = event
+                .paths
+                .iter()
+                .any(|p| p.extension().is_some_and(|e| e == ext));
+
+            if matches_ext {
+                let _ = tx.send(());
+            }
+        }
+    })?;
+
+    watcher
+        .watch(&dir, RecursiveMode::NonRecursive)
+        .map_err(|e| WatchError::Watch {
+            path: dir,
+            source: e,
+        })?;
+
+    let debounce_thread = std::thread::spawn(move || {
+        debounce_loop(&rx, &callback, DEBOUNCE_DURATION);
+    });
+
+    Ok(WatchHandle {
+        _watcher: watcher,
+        _debounce_thread: debounce_thread,
+    })
+}
+
 /// Consume events from `rx`, coalescing bursts within `duration` into a single
 /// callback invocation.
 fn debounce_loop(rx: &mpsc::Receiver<()>, callback: &dyn Fn(), duration: Duration) {

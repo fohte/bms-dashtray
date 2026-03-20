@@ -22,6 +22,8 @@ pub struct PlayRecord {
     pub artist: String,
     pub level: i32,
     pub difficulty: i32,
+    #[serde(default)]
+    pub table_levels: Vec<String>,
     pub previous_clear: Option<i32>,
     pub previous_ex_score: Option<i32>,
     pub previous_min_bp: Option<i32>,
@@ -116,6 +118,16 @@ impl HistoryStore {
 
     pub fn set_reset_time(&mut self, reset_time: &str) {
         self.reset_time = reset_time.to_string();
+    }
+
+    /// Updates table_levels for all records based on the provided lookup map.
+    pub fn update_table_levels(
+        &mut self,
+        table_map: &std::collections::HashMap<String, Vec<String>>,
+    ) {
+        for record in &mut self.records {
+            record.table_levels = table_map.get(&record.sha256).cloned().unwrap_or_default();
+        }
     }
 
     pub fn add_play_records(&mut self, records: Vec<PlayRecord>) -> Result<(), StoreError> {
@@ -276,6 +288,7 @@ mod tests {
             artist: "Test Artist".to_string(),
             level: 12,
             difficulty: 1,
+            table_levels: Vec::new(),
             previous_clear: Some(5),
             previous_ex_score: Some(1100),
             previous_min_bp: Some(20),

@@ -26,6 +26,7 @@ export interface PlayRecord {
   artist: string
   level: number
   difficulty: number
+  tableLevels: string[]
   previousClear: number | null
   previousExScore: number | null
   previousMinBp: number | null
