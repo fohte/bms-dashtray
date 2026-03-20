@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { PlayHistoryListContainer } from '@/components/PlayHistoryListContainer'
 import { SettingsScreenContainer } from '@/components/SettingsScreenContainer'
@@ -19,8 +19,15 @@ function getTodayDate(): string {
 export const App = () => {
   const [appState, setAppState] = useState<AppState>('loading')
   const [config, setConfig] = useState<AppConfig | null>(null)
+  const [todayDate, setTodayDate] = useState(() => getTodayDate())
+  const [resetKey, setResetKey] = useState(0)
 
-  const todayDate = useMemo(() => getTodayDate(), [])
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTodayDate(getTodayDate())
+    }, 60_000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     tauriApi
@@ -161,7 +168,7 @@ export const App = () => {
         </div>
       </div>
       <div style={{ height: '1px', backgroundColor: '#1A1A1A' }} />
-      <PlayHistoryListContainer api={tauriApi} />
+      <PlayHistoryListContainer key={resetKey} api={tauriApi} />
       <div style={{ flex: 1 }} />
       <div
         style={{
@@ -173,7 +180,9 @@ export const App = () => {
         <button
           type="button"
           onClick={() => {
-            void tauriApi.resetHistory()
+            void tauriApi.resetHistory().then(() => {
+              setResetKey((k) => k + 1)
+            })
           }}
           style={{
             background: 'none',
