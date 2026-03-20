@@ -267,6 +267,46 @@ export const LongTitles: Story = {
   },
 }
 
+export const TableLevels: Story = {
+  args: {
+    records: [
+      makeRecord({
+        title: 'FREEDOM DiVE',
+        level: 12,
+        tableLevels: ['★24'],
+        clear: 7,
+        exScore: 2456,
+        minBp: 8,
+        previousClear: 6,
+        previousExScore: 2300,
+        previousMinBp: 15,
+      }),
+      makeRecord({
+        title: 'Aleph-0',
+        level: 12,
+        tableLevels: ['st3', 'sl5'],
+        clear: 6,
+        exScore: 1900,
+        minBp: 18,
+        previousClear: 5,
+        previousExScore: 1800,
+        previousMinBp: 25,
+      }),
+      makeRecord({
+        title: 'Groundbreaking',
+        level: 11,
+        tableLevels: [],
+        clear: 5,
+        exScore: 1500,
+        minBp: 30,
+        previousClear: 5,
+        previousExScore: 1450,
+        previousMinBp: 35,
+      }),
+    ],
+  },
+}
+
 export const ManyEntries: Story = {
   args: {
     records: Array.from({ length: 20 }, (_, i) =>
