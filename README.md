@@ -10,6 +10,19 @@ Great for streamers who want an overlay showing live results, or for players who
 
 Download the latest installer for your OS from the [Releases](https://github.com/fohte/bms-dashtray/releases) page.
 
+| OS      | File format          |
+| ------- | -------------------- |
+| macOS   | `.dmg`               |
+| Windows | `.msi`               |
+| Linux   | `.deb` / `.AppImage` |
+
+### Notes on unsigned builds
+
+The app is not code-signed, so your OS may show a security warning on first launch.
+
+- **Windows** — SmartScreen will display a warning. Click **"More info"** → **"Run anyway"** to proceed.
+- **macOS** — Gatekeeper will block the app. Right-click (or Control-click) the app and select **"Open"**, then click **"Open"** in the confirmation dialog.
+
 ## Usage
 
 1. Launch bms-dashtray. On first run it asks you to pick your beatoraja root directory (the one containing the `player` folder).
