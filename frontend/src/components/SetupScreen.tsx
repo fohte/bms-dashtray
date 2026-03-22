@@ -7,7 +7,10 @@ export interface SetupScreenProps {
   dbFileStatuses: DbFileStatus[]
   isValidating: boolean
   error: string | null
+  players: string[]
+  selectedPlayer: string | null
   onSelectFolder: () => void
+  onSelectPlayer: (playerName: string) => void
   onStart: () => void
 }
 
@@ -143,6 +146,29 @@ const styles = {
   statusPending: {
     color: '#555555',
   },
+  playerSection: {
+    width: '100%',
+    marginBottom: '16px',
+  },
+  playerButton: {
+    display: 'block',
+    width: '100%',
+    padding: '10px 16px',
+    marginBottom: '4px',
+    backgroundColor: '#111111',
+    border: '1px solid #222222',
+    borderRadius: '6px',
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: '12px',
+    color: '#ffffff',
+    cursor: 'pointer',
+    textAlign: 'left' as const,
+    transition: 'all 0.15s',
+  },
+  playerButtonSelected: {
+    borderColor: '#ffffff',
+    backgroundColor: '#1a1a1a',
+  },
   startButton: {
     width: '100%',
     padding: '12px',
@@ -175,7 +201,10 @@ export function SetupScreen({
   dbFileStatuses,
   isValidating,
   error,
+  players,
+  selectedPlayer,
   onSelectFolder,
+  onSelectPlayer,
   onStart,
 }: SetupScreenProps) {
   const allFound =
@@ -224,6 +253,30 @@ export function SetupScreen({
           ...
         </button>
       </div>
+
+      {players.length > 1 && (
+        <>
+          <div style={styles.sectionLabel as CSSProperties}>PLAYER</div>
+          <div style={styles.playerSection}>
+            {players.map((name) => (
+              <button
+                key={name}
+                type="button"
+                style={{
+                  ...styles.playerButton,
+                  ...(selectedPlayer === name
+                    ? styles.playerButtonSelected
+                    : {}),
+                }}
+                onClick={() => onSelectPlayer(name)}
+                disabled={isValidating}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       <div style={styles.dbStatusArea}>
         {dbFileStatuses.length === 0 ? null : allFound ? (

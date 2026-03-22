@@ -6,7 +6,11 @@ import type { AppConfig, PlayRecord, ScoresUpdatedPayload } from '@/types'
 
 export interface TauriApi {
   getConfig: () => Promise<AppConfig | null>
-  validateAndSaveConfig: (beatorajaRoot: string) => Promise<void>
+  detectPlayers: (beatorajaRoot: string) => Promise<string[]>
+  validateAndSaveConfig: (
+    beatorajaRoot: string,
+    playerName: string,
+  ) => Promise<void>
   updateSettings: (settings: {
     resetTime?: string
     backgroundTransparent?: boolean
@@ -22,8 +26,10 @@ export interface TauriApi {
 
 export const tauriApi: TauriApi = {
   getConfig: () => invoke<AppConfig | null>('get_config'),
-  validateAndSaveConfig: (beatorajaRoot: string) =>
-    invoke<void>('validate_and_save_config', { beatorajaRoot }),
+  detectPlayers: (beatorajaRoot: string) =>
+    invoke<string[]>('detect_players', { beatorajaRoot }),
+  validateAndSaveConfig: (beatorajaRoot: string, playerName: string) =>
+    invoke<void>('validate_and_save_config', { beatorajaRoot, playerName }),
   updateSettings: (settings) => invoke<void>('update_settings', settings),
   resetHistory: () => invoke<void>('reset_history'),
   openFolderDialog: () => open({ directory: true }),

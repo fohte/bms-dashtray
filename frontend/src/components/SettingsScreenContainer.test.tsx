@@ -17,6 +17,7 @@ const defaultConfig: AppConfig = {
 function createMockApi(overrides: Partial<TauriApi> = {}): TauriApi {
   return {
     getConfig: vi.fn().mockResolvedValue(defaultConfig),
+    detectPlayers: vi.fn().mockResolvedValue(['default']),
     validateAndSaveConfig: vi.fn().mockResolvedValue(undefined),
     updateSettings: vi.fn().mockResolvedValue(undefined),
     resetHistory: vi.fn().mockResolvedValue(undefined),
@@ -208,7 +209,10 @@ describe('SettingsScreenContainer', () => {
     await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     await waitFor(() => {
-      expect(api.validateAndSaveConfig).toHaveBeenCalledWith('/new/path')
+      expect(api.validateAndSaveConfig).toHaveBeenCalledWith(
+        '/new/path',
+        'default',
+      )
     })
 
     await waitFor(() => {

@@ -8,6 +8,7 @@ import type { TauriApi } from '@/tauri-api'
 function createMockApi(overrides: Partial<TauriApi> = {}): TauriApi {
   return {
     getConfig: vi.fn().mockResolvedValue(null),
+    detectPlayers: vi.fn().mockResolvedValue(['default']),
     validateAndSaveConfig: vi.fn().mockResolvedValue(undefined),
     updateSettings: vi.fn().mockResolvedValue(undefined),
     resetHistory: vi.fn().mockResolvedValue(undefined),
@@ -27,9 +28,10 @@ describe('SetupScreenContainer', () => {
     expect(api.openFolderDialog).toHaveBeenCalledOnce()
   })
 
-  it('validates config after folder selection', async () => {
+  it('auto-selects single player and validates config', async () => {
     const api = createMockApi({
       openFolderDialog: vi.fn().mockResolvedValue('/path/to/beatoraja'),
+      detectPlayers: vi.fn().mockResolvedValue(['Player1']),
       validateAndSaveConfig: vi.fn().mockResolvedValue(undefined),
     })
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
@@ -37,8 +39,52 @@ describe('SetupScreenContainer', () => {
     await userEvent.click(screen.getByRole('button', { name: '...' }))
 
     await waitFor(() => {
+      expect(api.detectPlayers).toHaveBeenCalledWith('/path/to/beatoraja')
       expect(api.validateAndSaveConfig).toHaveBeenCalledWith(
         '/path/to/beatoraja',
+        'Player1',
+      )
+    })
+  })
+
+  it('shows player selection when multiple players detected', async () => {
+    const api = createMockApi({
+      openFolderDialog: vi.fn().mockResolvedValue('/path/to/beatoraja'),
+      detectPlayers: vi.fn().mockResolvedValue(['Player1', 'Player2']),
+    })
+    render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
+
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Player1')).toBeInTheDocument()
+      expect(screen.getByText('Player2')).toBeInTheDocument()
+    })
+
+    // Should not have called validateAndSaveConfig yet
+    expect(api.validateAndSaveConfig).not.toHaveBeenCalled()
+  })
+
+  it('validates after selecting a player from multiple choices', async () => {
+    const api = createMockApi({
+      openFolderDialog: vi.fn().mockResolvedValue('/path/to/beatoraja'),
+      detectPlayers: vi.fn().mockResolvedValue(['Player1', 'Player2']),
+      validateAndSaveConfig: vi.fn().mockResolvedValue(undefined),
+    })
+    render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
+
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Player1')).toBeInTheDocument()
+    })
+
+    await userEvent.click(screen.getByText('Player2'))
+
+    await waitFor(() => {
+      expect(api.validateAndSaveConfig).toHaveBeenCalledWith(
+        '/path/to/beatoraja',
+        'Player2',
       )
     })
   })
@@ -59,6 +105,7 @@ describe('SetupScreenContainer', () => {
   it('enables START after successful validation', async () => {
     const api = createMockApi({
       openFolderDialog: vi.fn().mockResolvedValue('/path/to/beatoraja'),
+      detectPlayers: vi.fn().mockResolvedValue(['default']),
       validateAndSaveConfig: vi.fn().mockResolvedValue(undefined),
     })
     render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
@@ -70,9 +117,28 @@ describe('SetupScreenContainer', () => {
     })
   })
 
+  it('shows error when detect_players fails', async () => {
+    const api = createMockApi({
+      openFolderDialog: vi.fn().mockResolvedValue('/wrong/path'),
+      detectPlayers: vi
+        .fn()
+        .mockRejectedValue(
+          new Error('player directory not found under /wrong/path/player/'),
+        ),
+    })
+    render(<SetupScreenContainer api={api} onSetupComplete={vi.fn()} />)
+
+    await userEvent.click(screen.getByRole('button', { name: '...' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'START' })).toBeDisabled()
+    })
+  })
+
   it('shows not-found files on validation failure', async () => {
     const api = createMockApi({
       openFolderDialog: vi.fn().mockResolvedValue('/wrong/path'),
+      detectPlayers: vi.fn().mockResolvedValue(['default']),
       validateAndSaveConfig: vi
         .fn()
         .mockRejectedValue(new Error('Missing: scoredatalog.db, score.db')),
@@ -93,6 +159,7 @@ describe('SetupScreenContainer', () => {
     const onSetupComplete = vi.fn()
     const api = createMockApi({
       openFolderDialog: vi.fn().mockResolvedValue('/path/to/beatoraja'),
+      detectPlayers: vi.fn().mockResolvedValue(['default']),
       validateAndSaveConfig: vi.fn().mockResolvedValue(undefined),
     })
     render(<SetupScreenContainer api={api} onSetupComplete={onSetupComplete} />)
@@ -115,6 +182,7 @@ describe('SetupScreenContainer', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '...' }))
 
+    expect(api.detectPlayers).not.toHaveBeenCalled()
     expect(api.validateAndSaveConfig).not.toHaveBeenCalled()
     expect(screen.getByText('Select folder...')).toBeInTheDocument()
   })

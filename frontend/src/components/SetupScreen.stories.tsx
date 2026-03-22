@@ -19,7 +19,10 @@ export const Initial: Story = {
     dbFileStatuses: [],
     isValidating: false,
     error: null,
+    players: [],
+    selectedPlayer: null,
     onSelectFolder: () => {},
+    onSelectPlayer: () => {},
     onStart: () => {},
   },
 }
@@ -30,7 +33,10 @@ export const PathSelected: Story = {
     dbFileStatuses: [],
     isValidating: true,
     error: null,
+    players: [],
+    selectedPlayer: null,
     onSelectFolder: () => {},
+    onSelectPlayer: () => {},
     onStart: () => {},
   },
 }
@@ -46,7 +52,10 @@ export const ValidationSuccess: Story = {
     ],
     isValidating: false,
     error: null,
+    players: ['default'],
+    selectedPlayer: 'default',
     onSelectFolder: () => {},
+    onSelectPlayer: () => {},
     onStart: () => {},
   },
 }
@@ -62,7 +71,10 @@ export const ValidationError: Story = {
     ],
     isValidating: false,
     error: 'Missing database files: scoredatalog.db, score.db, scorelog.db',
+    players: ['default'],
+    selectedPlayer: 'default',
     onSelectFolder: () => {},
+    onSelectPlayer: () => {},
     onStart: () => {},
   },
 }
@@ -79,7 +91,43 @@ export const AllMissing: Story = {
     isValidating: false,
     error:
       'Missing database files: songdata.db, scoredatalog.db, score.db, scorelog.db',
+    players: [],
+    selectedPlayer: null,
     onSelectFolder: () => {},
+    onSelectPlayer: () => {},
+    onStart: () => {},
+  },
+}
+
+export const MultiplePlayersDetected: Story = {
+  args: {
+    selectedPath: '/Users/player/beatoraja',
+    dbFileStatuses: [],
+    isValidating: false,
+    error: null,
+    players: ['Player1', 'Player2', 'default'],
+    selectedPlayer: null,
+    onSelectFolder: () => {},
+    onSelectPlayer: () => {},
+    onStart: () => {},
+  },
+}
+
+export const PlayerSelected: Story = {
+  args: {
+    selectedPath: '/Users/player/beatoraja',
+    dbFileStatuses: [
+      { name: 'songdata.db', found: true },
+      { name: 'scoredatalog.db', found: true },
+      { name: 'score.db', found: true },
+      { name: 'scorelog.db', found: true },
+    ],
+    isValidating: false,
+    error: null,
+    players: ['Player1', 'Player2', 'default'],
+    selectedPlayer: 'Player1',
+    onSelectFolder: () => {},
+    onSelectPlayer: () => {},
     onStart: () => {},
   },
 }

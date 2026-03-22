@@ -93,6 +93,10 @@ pub enum ConfigError {
     Serialize(#[source] serde_json::Error),
     #[error("DB file not found: {path}")]
     DbFileNotFound { path: String },
+    #[error("player directory not found under {root}/player/")]
+    NoPlayerFound { root: String },
+    #[error("failed to read player directory: {0}")]
+    ReadPlayerDir(#[source] std::io::Error),
 }
 
 pub struct ConfigManager {
@@ -124,11 +128,53 @@ impl ConfigManager {
         fs::write(&self.config_path, contents).map_err(ConfigError::WriteFile)
     }
 
-    /// Validates that all required DB files exist for the given beatoraja_root,
-    /// then saves the config.
-    pub fn validate_and_save(&self, beatoraja_root: &str) -> Result<(), ConfigError> {
+    /// Detects valid player directories under `{beatoraja_root}/player/`.
+    /// A directory is considered valid if it contains at least one of the
+    /// expected DB files (score.db, scorelog.db, scoredatalog.db).
+    pub fn detect_players(beatoraja_root: &str) -> Result<Vec<String>, ConfigError> {
+        let player_dir = Path::new(beatoraja_root).join("player");
+        if !player_dir.is_dir() {
+            return Err(ConfigError::NoPlayerFound {
+                root: beatoraja_root.to_string(),
+            });
+        }
+
+        let db_files = ["score.db", "scorelog.db", "scoredatalog.db"];
+        let mut players = Vec::new();
+
+        for entry in fs::read_dir(&player_dir).map_err(ConfigError::ReadPlayerDir)? {
+            let entry = entry.map_err(ConfigError::ReadPlayerDir)?;
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let has_db = db_files.iter().any(|f| path.join(f).exists());
+            if has_db && let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                players.push(name.to_string());
+            }
+        }
+
+        players.sort();
+
+        if players.is_empty() {
+            return Err(ConfigError::NoPlayerFound {
+                root: beatoraja_root.to_string(),
+            });
+        }
+
+        Ok(players)
+    }
+
+    /// Validates that all required DB files exist for the given beatoraja_root
+    /// and player_name, then saves the config.
+    pub fn validate_and_save(
+        &self,
+        beatoraja_root: &str,
+        player_name: &str,
+    ) -> Result<(), ConfigError> {
         let mut config = self.load()?.unwrap_or_default();
         config.beatoraja_root = beatoraja_root.to_string();
+        config.player_name = player_name.to_string();
 
         for path in config.all_db_paths() {
             if !path.exists() {
@@ -240,19 +286,22 @@ mod tests {
 
     #[rstest]
     fn test_validate_and_save_succeeds_with_valid_paths(ctx: TestContext) {
-        let beatoraja_root = create_fake_beatoraja_dir(ctx.dir_path(), "");
+        let beatoraja_root = create_fake_beatoraja_dir(ctx.dir_path(), "Player1");
         let result = ctx
             .manager
-            .validate_and_save(beatoraja_root.to_str().unwrap());
+            .validate_and_save(beatoraja_root.to_str().unwrap(), "Player1");
         assert!(result.is_ok());
 
         let config = ctx.manager.load().unwrap().unwrap();
         assert_eq!(config.beatoraja_root, beatoraja_root.to_str().unwrap());
+        assert_eq!(config.player_name, "Player1");
     }
 
     #[rstest]
     fn test_validate_and_save_fails_with_missing_db(ctx: TestContext) {
-        let result = ctx.manager.validate_and_save("/nonexistent/path");
+        let result = ctx
+            .manager
+            .validate_and_save("/nonexistent/path", "default");
         assert!(result.is_err());
         match result {
             Err(ConfigError::DbFileNotFound { path }) => {
@@ -273,15 +322,67 @@ mod tests {
         };
         ctx.manager.save(&initial).unwrap();
 
-        let beatoraja_root = create_fake_beatoraja_dir(ctx.dir_path(), "");
+        let beatoraja_root = create_fake_beatoraja_dir(ctx.dir_path(), "Player1");
         ctx.manager
-            .validate_and_save(beatoraja_root.to_str().unwrap())
+            .validate_and_save(beatoraja_root.to_str().unwrap(), "Player1")
             .unwrap();
 
         let config = ctx.manager.load().unwrap().unwrap();
         assert_eq!(config.reset_time, "07:00");
         assert!(config.background_transparent);
         assert_eq!(config.font_size, 20);
+    }
+
+    mod detect_players {
+        use super::*;
+
+        #[rstest]
+        fn test_detects_single_player(ctx: TestContext) {
+            create_fake_beatoraja_dir(ctx.dir_path(), "Player1");
+            let root = ctx.dir_path().join("beatoraja");
+            let players = ConfigManager::detect_players(root.to_str().unwrap()).unwrap();
+            assert_eq!(players, vec!["Player1"]);
+        }
+
+        #[rstest]
+        fn test_detects_multiple_players(ctx: TestContext) {
+            let root = ctx.dir_path().join("beatoraja");
+            fs::create_dir_all(root.join("player").join("Alice")).unwrap();
+            fs::create_dir_all(root.join("player").join("Bob")).unwrap();
+            fs::write(root.join("player").join("Alice").join("score.db"), "").unwrap();
+            fs::write(root.join("player").join("Bob").join("score.db"), "").unwrap();
+
+            let players = ConfigManager::detect_players(root.to_str().unwrap()).unwrap();
+            assert_eq!(players, vec!["Alice", "Bob"]);
+        }
+
+        #[rstest]
+        fn test_ignores_dirs_without_db_files(ctx: TestContext) {
+            let root = ctx.dir_path().join("beatoraja");
+            fs::create_dir_all(root.join("player").join("valid")).unwrap();
+            fs::create_dir_all(root.join("player").join("empty")).unwrap();
+            fs::write(root.join("player").join("valid").join("score.db"), "").unwrap();
+
+            let players = ConfigManager::detect_players(root.to_str().unwrap()).unwrap();
+            assert_eq!(players, vec!["valid"]);
+        }
+
+        #[rstest]
+        fn test_returns_error_when_no_player_dir(ctx: TestContext) {
+            let root = ctx.dir_path().join("beatoraja");
+            fs::create_dir_all(&root).unwrap();
+            // No player/ directory
+            let result = ConfigManager::detect_players(root.to_str().unwrap());
+            assert!(matches!(result, Err(ConfigError::NoPlayerFound { .. })));
+        }
+
+        #[rstest]
+        fn test_returns_error_when_no_valid_players(ctx: TestContext) {
+            let root = ctx.dir_path().join("beatoraja");
+            fs::create_dir_all(root.join("player").join("empty")).unwrap();
+            let result = ConfigManager::detect_players(root.to_str().unwrap());
+            assert!(matches!(result, Err(ConfigError::NoPlayerFound { .. })));
+        }
     }
 
     #[rstest]
