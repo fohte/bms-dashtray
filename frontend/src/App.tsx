@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { PlayHistoryListContainer } from '@/components/PlayHistoryListContainer'
+import { UpdateNotification } from '@/components/UpdateNotification'
 import { SettingsScreenContainer } from '@/components/SettingsScreenContainer'
 import { SetupScreenContainer } from '@/components/SetupScreenContainer'
 import { tauriApi } from '@/tauri-api'
@@ -115,6 +116,7 @@ export const App = () => {
         color: '#ffffff',
       }}
     >
+      <UpdateNotification />
       <div
         style={{
           display: 'flex',
