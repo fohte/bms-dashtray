@@ -72,8 +72,8 @@ jobs:
           gh release create nightly \
             --prerelease \
             --title "Nightly ($(date -u '+%Y-%m-%d'))" \
-            --notes "$(cat <<'NOTES'
-          Automated nightly build from [`${GITHUB_SHA::7}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}).
+            --notes "$(cat <<NOTES
+          Automated nightly build from [\`${GITHUB_SHA::7}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}).
 
           > [!WARNING]
           > This is an unstable pre-release build. Use at your own risk.
