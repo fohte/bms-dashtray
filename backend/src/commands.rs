@@ -51,16 +51,22 @@ pub fn get_config(state: State<'_, ConfigManagerState>) -> Result<Option<AppConf
 }
 
 #[tauri::command]
+pub fn detect_players(beatoraja_root: String) -> Result<Vec<String>, CommandError> {
+    ConfigManager::detect_players(&beatoraja_root).map_err(Into::into)
+}
+
+#[tauri::command]
 pub fn validate_and_save_config(
     state: State<'_, ConfigManagerState>,
     beatoraja_root: String,
+    player_name: String,
 ) -> Result<(), CommandError> {
     let manager = state
         .0
         .lock()
         .map_err(|e| CommandError::Lock(e.to_string()))?;
     manager
-        .validate_and_save(&beatoraja_root)
+        .validate_and_save(&beatoraja_root, &player_name)
         .map_err(Into::into)
 }
 

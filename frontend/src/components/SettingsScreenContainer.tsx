@@ -33,7 +33,10 @@ export function SettingsScreenContainer({
     if (path == null) return
 
     try {
-      await api.validateAndSaveConfig(path)
+      const players = await api.detectPlayers(path)
+      // Use the first detected player (settings screen doesn't need a picker)
+      const playerName = players[0] ?? ''
+      await api.validateAndSaveConfig(path, playerName)
       const refreshed = await api.getConfig()
       if (refreshed != null) {
         setCurrentConfig(refreshed)

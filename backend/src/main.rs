@@ -52,6 +52,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_config,
+            commands::detect_players,
             commands::validate_and_save_config,
             commands::update_settings,
             commands::get_today_records,

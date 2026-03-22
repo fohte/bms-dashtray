@@ -8,7 +8,10 @@ const defaultProps: SetupScreenProps = {
   dbFileStatuses: [],
   isValidating: false,
   error: null,
+  players: [],
+  selectedPlayer: null,
   onSelectFolder: vi.fn(),
+  onSelectPlayer: vi.fn(),
   onStart: vi.fn(),
 }
 
