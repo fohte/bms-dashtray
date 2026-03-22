@@ -1,16 +1,34 @@
-import { type CSSProperties, useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { type Update, check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 
-type UpdateState =
+import {
+  UpdateNotificationBar,
+  type UpdateNotificationState,
+} from '@/components/UpdateNotificationBar'
+
+type InternalState =
   | { status: 'idle' }
   | { status: 'available'; update: Update }
   | { status: 'downloading'; progress: number }
   | { status: 'error'; message: string }
 
+function toBarState(state: InternalState): UpdateNotificationState | null {
+  switch (state.status) {
+    case 'idle':
+      return null
+    case 'available':
+      return { status: 'available', version: state.update.version }
+    case 'downloading':
+      return { status: 'downloading', progress: state.progress }
+    case 'error':
+      return { status: 'error', message: state.message }
+  }
+}
+
 export const UpdateNotification = () => {
-  const [state, setState] = useState<UpdateState>({ status: 'idle' })
+  const [state, setState] = useState<InternalState>({ status: 'idle' })
 
   useEffect(() => {
     let cancelled = false
@@ -75,86 +93,14 @@ export const UpdateNotification = () => {
     setState({ status: 'idle' })
   }, [])
 
-  if (state.status === 'idle') return null
+  const barState = toBarState(state)
+  if (!barState) return null
 
   return (
-    <div style={containerStyle}>
-      {state.status === 'available' && (
-        <>
-          <span style={textStyle}>v{state.update.version} available</span>
-          <button
-            type="button"
-            onClick={handleUpdate}
-            style={updateButtonStyle}
-          >
-            UPDATE
-          </button>
-          <button
-            type="button"
-            onClick={handleDismiss}
-            style={dismissButtonStyle}
-          >
-            DISMISS
-          </button>
-        </>
-      )}
-      {state.status === 'downloading' && (
-        <span style={textStyle}>Downloading... {state.progress}%</span>
-      )}
-      {state.status === 'error' && (
-        <>
-          <span style={{ ...textStyle, color: '#EF4444' }}>
-            Update failed: {state.message}
-          </span>
-          <button
-            type="button"
-            onClick={handleDismiss}
-            style={dismissButtonStyle}
-          >
-            DISMISS
-          </button>
-        </>
-      )}
-    </div>
+    <UpdateNotificationBar
+      state={barState}
+      onUpdate={handleUpdate}
+      onDismiss={handleDismiss}
+    />
   )
-}
-
-const containerStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '8px',
-  padding: '8px 16px',
-  backgroundColor: '#1A1A2E',
-  borderBottom: '1px solid #1A1A1A',
-  fontFamily: "'JetBrains Mono', monospace",
-  fontSize: '11px',
-}
-
-const textStyle: CSSProperties = {
-  color: '#94A3B8',
-  fontWeight: 500,
-}
-
-const updateButtonStyle: CSSProperties = {
-  background: 'none',
-  border: '1px solid #3B82F6',
-  borderRadius: '4px',
-  color: '#3B82F6',
-  fontFamily: "'JetBrains Mono', monospace",
-  fontSize: '10px',
-  fontWeight: 600,
-  letterSpacing: '1px',
-  padding: '3px 8px',
-  cursor: 'pointer',
-}
-
-const dismissButtonStyle: CSSProperties = {
-  background: 'none',
-  border: 'none',
-  color: '#475569',
-  fontFamily: "'JetBrains Mono', monospace",
-  fontSize: '10px',
-  fontWeight: 600,
-  padding: '3px 8px',
-  cursor: 'pointer',
 }
