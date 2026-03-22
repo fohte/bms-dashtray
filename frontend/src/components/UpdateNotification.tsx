@@ -1,11 +1,11 @@
 import { type CSSProperties, useCallback, useEffect, useState } from 'react'
 
-import { check } from '@tauri-apps/plugin-updater'
+import { type Update, check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 
 type UpdateState =
   | { status: 'idle' }
-  | { status: 'available'; version: string }
+  | { status: 'available'; update: Update }
   | { status: 'downloading'; progress: number }
   | { status: 'error'; message: string }
 
@@ -19,7 +19,7 @@ export const UpdateNotification = () => {
       try {
         const update = await check()
         if (!cancelled && update) {
-          setState({ status: 'available', version: update.version })
+          setState({ status: 'available', update })
         }
       } catch (e) {
         if (!cancelled) {
@@ -36,11 +36,11 @@ export const UpdateNotification = () => {
   }, [])
 
   const handleUpdate = useCallback(() => {
+    if (state.status !== 'available') return
+    const { update } = state
+
     const doUpdate = async () => {
       try {
-        const update = await check()
-        if (!update) return
-
         let totalLength = 0
         let downloadedLength = 0
 
@@ -69,7 +69,7 @@ export const UpdateNotification = () => {
 
     setState({ status: 'downloading', progress: 0 })
     void doUpdate()
-  }, [])
+  }, [state])
 
   const handleDismiss = useCallback(() => {
     setState({ status: 'idle' })
@@ -81,7 +81,7 @@ export const UpdateNotification = () => {
     <div style={containerStyle}>
       {state.status === 'available' && (
         <>
-          <span style={textStyle}>v{state.version} available</span>
+          <span style={textStyle}>v{state.update.version} available</span>
           <button
             type="button"
             onClick={handleUpdate}
