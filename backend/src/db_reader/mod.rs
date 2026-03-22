@@ -22,10 +22,10 @@ pub struct ScoreDataLog {
     pub min_bp: i32,
     pub notes: i32,
     pub combo: i32,
-    /// ISO 8601 formatted date string converted from UNIX time (milliseconds).
+    /// ISO 8601 formatted date string converted from UNIX time (seconds).
     pub played_at: String,
-    /// Raw UNIX timestamp in milliseconds from the database.
-    pub date_millis: i64,
+    /// Raw UNIX timestamp in seconds from the database.
+    pub date_secs: i64,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -51,15 +51,15 @@ fn open_readonly_checked(path: &Path) -> Result<Connection, DBError> {
     Ok(open_readonly(path)?)
 }
 
-fn unix_millis_to_iso8601(millis: i64) -> Result<String, rusqlite::Error> {
-    let dt: DateTime<Utc> = DateTime::from_timestamp_millis(millis).ok_or_else(|| {
+fn unix_secs_to_iso8601(secs: i64) -> Result<String, rusqlite::Error> {
+    let dt: DateTime<Utc> = DateTime::from_timestamp(secs, 0).ok_or_else(|| {
         rusqlite::Error::FromSqlConversionFailure(
             10,
             rusqlite::types::Type::Integer,
-            format!("invalid timestamp millis: {millis}").into(),
+            format!("invalid timestamp secs: {secs}").into(),
         )
     })?;
-    Ok(dt.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string())
+    Ok(dt.format("%Y-%m-%dT%H:%M:%SZ").to_string())
 }
 
 pub fn read_all_score_data_logs(path: &Path) -> Result<Vec<ScoreDataLog>, DBError> {
@@ -74,7 +74,7 @@ pub fn read_all_score_data_logs(path: &Path) -> Result<Vec<ScoreDataLog>, DBErro
         let egr: i32 = row.get(4)?;
         let lpg: i32 = row.get(5)?;
         let lgr: i32 = row.get(6)?;
-        let date_millis: i64 = row.get(10)?;
+        let date_secs: i64 = row.get(10)?;
 
         Ok(ScoreDataLog {
             sha256: row.get(0)?,
@@ -84,8 +84,8 @@ pub fn read_all_score_data_logs(path: &Path) -> Result<Vec<ScoreDataLog>, DBErro
             min_bp: row.get(7)?,
             notes: row.get(8)?,
             combo: row.get(9)?,
-            played_at: unix_millis_to_iso8601(date_millis)?,
-            date_millis,
+            played_at: unix_secs_to_iso8601(date_secs)?,
+            date_secs,
         })
     })?;
 
@@ -185,20 +185,9 @@ mod tests {
     fn test_read_all_score_data_logs_single_record(test_db: TestDb) {
         let conn = test_db.conn();
         // epg=100, egr=50, lpg=80, lgr=30 → ex_score = 100*2 + 50 + 80*2 + 30 = 440
-        // date = 1710400000000 (2024-03-14T07:06:40.000Z)
+        // date = 1710400000 (2024-03-14T07:06:40Z)
         insert_record(
-            &conn,
-            "abc123",
-            0,
-            6,
-            100,
-            50,
-            80,
-            30,
-            15,
-            800,
-            500,
-            1710400000000,
+            &conn, "abc123", 0, 6, 100, 50, 80, 30, 15, 800, 500, 1710400000,
         );
         drop(conn);
 
@@ -214,40 +203,18 @@ mod tests {
         assert_eq!(record.min_bp, 15);
         assert_eq!(record.notes, 800);
         assert_eq!(record.combo, 500);
-        assert_eq!(record.played_at, "2024-03-14T07:06:40.000Z");
-        assert_eq!(record.date_millis, 1710400000000);
+        assert_eq!(record.played_at, "2024-03-14T07:06:40Z");
+        assert_eq!(record.date_secs, 1710400000);
     }
 
     #[rstest]
     fn test_read_all_score_data_logs_multiple_records(test_db: TestDb) {
         let conn = test_db.conn();
         insert_record(
-            &conn,
-            "hash_a",
-            0,
-            5,
-            200,
-            100,
-            150,
-            80,
-            10,
-            1000,
-            900,
-            1710400000000,
+            &conn, "hash_a", 0, 5, 200, 100, 150, 80, 10, 1000, 900, 1710400000,
         );
         insert_record(
-            &conn,
-            "hash_b",
-            1,
-            7,
-            300,
-            50,
-            250,
-            40,
-            5,
-            1200,
-            1100,
-            1710500000000,
+            &conn, "hash_b", 1, 7, 300, 50, 250, 40, 5, 1200, 1100, 1710500000,
         );
         drop(conn);
 
@@ -301,12 +268,12 @@ mod tests {
     }
 
     #[rstest]
-    #[case::epoch(0, "1970-01-01T00:00:00.000Z")]
-    #[case::with_millis(1710400000123, "2024-03-14T07:06:40.123Z")]
-    #[case::year_2026(1773849600000, "2026-03-18T16:00:00.000Z")]
-    fn test_unix_millis_to_iso8601(#[case] millis: i64, #[case] expected: &str) {
+    #[case::epoch(0, "1970-01-01T00:00:00Z")]
+    #[case::specific(1710400000, "2024-03-14T07:06:40Z")]
+    #[case::year_2026(1773849600, "2026-03-18T16:00:00Z")]
+    fn test_unix_secs_to_iso8601(#[case] secs: i64, #[case] expected: &str) {
         assert_eq!(
-            unix_millis_to_iso8601(millis).expect("failed to convert timestamp"),
+            unix_secs_to_iso8601(secs).expect("failed to convert timestamp"),
             expected
         );
     }

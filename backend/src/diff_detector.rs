@@ -207,9 +207,8 @@ impl DiffDetector {
         play: &ScoreDataLog,
         db_paths: &DbPaths<'_>,
     ) -> Result<Option<BestScore>, DiffError> {
-        // scorelog.date stores UNIX seconds, scoredatalog.date stores UNIX milliseconds
-        let date_seconds = play.date_millis / 1000;
-        let score_log = read_score_log(db_paths.scorelog, &play.sha256, play.mode, date_seconds)?;
+        // Both scorelog.date and scoredatalog.date store UNIX seconds
+        let score_log = read_score_log(db_paths.scorelog, &play.sha256, play.mode, play.date_secs)?;
 
         if let Some(log) = score_log {
             // Best was updated: the old values represent the previous best
@@ -508,8 +507,8 @@ mod tests {
 
     #[rstest]
     fn test_detect_new_record(test_dbs: TestDbs) {
-        // date_millis = 1710400000000 (2024-03-14T07:06:40.000Z)
-        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710400000000);
+        // date = 1710400000 (2024-03-14T07:06:40Z)
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710400000);
         insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
 
         let mut detector = DiffDetector::new();
@@ -529,7 +528,7 @@ mod tests {
 
     #[rstest]
     fn test_detect_updated_record(test_dbs: TestDbs) {
-        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 5, 1710400000000);
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 5, 1710400000);
         insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
 
         let mut detector = DiffDetector::new();
@@ -541,7 +540,7 @@ mod tests {
             .unwrap();
 
         // Update the record (simulate a new play)
-        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710500000000);
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710500000);
 
         let results = detector
             .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
@@ -554,7 +553,7 @@ mod tests {
 
     #[rstest]
     fn test_no_change_detected(test_dbs: TestDbs) {
-        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710400000000);
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710400000);
         insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
 
         let mut detector = DiffDetector::new();
@@ -576,8 +575,8 @@ mod tests {
     #[rstest]
     fn test_skip_restored_records_on_first_read(test_dbs: TestDbs) {
         // Two records in the DB
-        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710400000000);
-        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "def456", 0, 5, 1710500000000);
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710400000);
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "def456", 0, 5, 1710500000);
         insert_songdata(&test_dbs.songdata_conn(), "abc123", "Song A", "Artist");
         insert_songdata(&test_dbs.songdata_conn(), "def456", "Song B", "Artist");
 
@@ -586,11 +585,7 @@ mod tests {
 
         // abc123 was already restored from history
         let mut restored = HashSet::new();
-        restored.insert((
-            "abc123".to_string(),
-            0,
-            "2024-03-14T07:06:40.000Z".to_string(),
-        ));
+        restored.insert(("abc123".to_string(), 0, "2024-03-14T07:06:40Z".to_string()));
 
         let results = detector
             .on_db_changed(&test_dbs.db_paths(), &restored)
@@ -626,7 +621,7 @@ mod tests {
         if let Some((clear, minbp)) = score_db_entry {
             insert_score(&test_dbs.score_conn(), "abc123", 0, clear, minbp);
         }
-        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710500000000);
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710500000);
         if let Some((old_clear, old_score, old_minbp, date)) = scorelog_entry {
             insert_scorelog(
                 &test_dbs.scorelog_conn(),
@@ -659,7 +654,7 @@ mod tests {
         detector.load_best_scores(&test_dbs.paths.score).unwrap();
 
         // First play: best update happens
-        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710500000000);
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710500000);
         insert_scorelog(
             &test_dbs.scorelog_conn(),
             "abc123",
@@ -674,7 +669,7 @@ mod tests {
             .unwrap();
 
         // Second play: no best update, should use the updated cache
-        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 5, 1710600000000);
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 5, 1710600000);
         let results = detector
             .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
             .unwrap();
@@ -700,7 +695,7 @@ mod tests {
         #[case] songdata: Option<(&str, &str)>,
         #[case] expected: (&str, &str, i32, i32),
     ) {
-        insert_scoredatalog(&test_dbs.scoredatalog_conn(), sha256, 0, 6, 1710400000000);
+        insert_scoredatalog(&test_dbs.scoredatalog_conn(), sha256, 0, 6, 1710400000);
         if let Some((title, artist)) = songdata {
             insert_songdata(&test_dbs.songdata_conn(), sha256, title, artist);
         }
@@ -744,7 +739,7 @@ mod tests {
             25,
             0,
             25,
-            1710500000000,
+            1710500000,
         );
         let _ = detector
             .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
@@ -762,7 +757,7 @@ mod tests {
             10,
             10,
             30,
-            1710600000000,
+            1710600000,
         );
         let results = detector
             .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
