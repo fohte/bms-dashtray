@@ -18,7 +18,19 @@
     ".": {
       "release-type": "simple",
       "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": true
+      "bump-patch-for-minor-pre-major": true,
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "backend/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "json",
+          "path": "backend/tauri.conf.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   }
 }
