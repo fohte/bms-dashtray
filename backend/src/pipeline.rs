@@ -245,10 +245,10 @@ mod tests {
     use rusqlite::Connection;
     use tempfile::TempDir;
 
-    /// Returns a UNIX timestamp in milliseconds for "today" at the given hour (in local time),
+    /// Returns a UNIX timestamp in seconds for "today" at the given hour (in local time),
     /// using the logical date (accounting for the 05:00 reset time) so that
     /// `get_today_records()` will include this record even when tests run between midnight and 05:00.
-    fn today_millis(hour: u32) -> i64 {
+    fn today_secs(hour: u32) -> i64 {
         use chrono::{Datelike as _, Local, NaiveTime, TimeZone as _};
         let now = Local::now();
         let reset_time = NaiveTime::from_hms_opt(5, 0, 0).unwrap_or_default();
@@ -268,8 +268,8 @@ mod tests {
             )
             .single();
         match dt {
-            Some(d) => d.timestamp_millis(),
-            None => Local::now().timestamp_millis(),
+            Some(d) => d.timestamp(),
+            None => Local::now().timestamp(),
         }
     }
 
@@ -509,7 +509,7 @@ mod tests {
 
     #[rstest]
     fn test_pipeline_cycle_emits_scores_updated(mut ctx: PipelineTestContext) {
-        insert_scoredatalog(&ctx.config, "abc123", 0, 6, today_millis(10));
+        insert_scoredatalog(&ctx.config, "abc123", 0, 6, today_secs(10));
         insert_songdata(&ctx.config, "abc123", "Test Song", "Artist");
 
         let restored_keys = HashSet::new();
@@ -556,7 +556,7 @@ mod tests {
 
     #[rstest]
     fn test_pipeline_cycle_emits_all_today_records(mut ctx: PipelineTestContext) {
-        insert_scoredatalog(&ctx.config, "abc123", 0, 6, today_millis(10));
+        insert_scoredatalog(&ctx.config, "abc123", 0, 6, today_secs(10));
         insert_songdata(&ctx.config, "abc123", "Song A", "Artist A");
 
         let restored_keys = HashSet::new();
@@ -574,7 +574,7 @@ mod tests {
         });
 
         // Add second record
-        insert_scoredatalog(&ctx.config, "def456", 0, 5, today_millis(12));
+        insert_scoredatalog(&ctx.config, "def456", 0, 5, today_secs(12));
         insert_songdata(&ctx.config, "def456", "Song B", "Artist B");
 
         // Second cycle: adds second record, payload should contain both
@@ -607,7 +607,7 @@ mod tests {
 
     #[rstest]
     fn test_pipeline_persists_after_adding_records(mut ctx: PipelineTestContext) {
-        insert_scoredatalog(&ctx.config, "abc123", 0, 6, today_millis(10));
+        insert_scoredatalog(&ctx.config, "abc123", 0, 6, today_secs(10));
         insert_songdata(&ctx.config, "abc123", "Test Song", "Artist");
 
         let restored_keys = HashSet::new();

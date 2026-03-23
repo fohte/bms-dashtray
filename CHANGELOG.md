@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/fohte/bms-dashtray/compare/v0.1.0...v0.1.1) (2026-03-22)
+
+
+### Bug Fixes
+
+* **setup:** auto-detect player directory during setup ([#47](https://github.com/fohte/bms-dashtray/issues/47)) ([161bf8b](https://github.com/fohte/bms-dashtray/commit/161bf8b30a9d21404a7c3b26f9e5a8a1b39cb1ac))
+
 ## [0.1.0](https://github.com/fohte/bms-dashtray/compare/v0.1.0...v0.1.0) (2026-03-20)
 
 

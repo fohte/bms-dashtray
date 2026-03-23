@@ -14,6 +14,8 @@ use tauri::Manager as _;
 fn main() {
     if let Err(e) = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir()?;
 
@@ -52,6 +54,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_config,
+            commands::detect_players,
             commands::validate_and_save_config,
             commands::update_settings,
             commands::get_today_records,

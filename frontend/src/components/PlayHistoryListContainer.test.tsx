@@ -32,6 +32,7 @@ function makeRecord(overrides: Partial<PlayRecord> = {}): PlayRecord {
 function createMockApi(overrides: Partial<TauriApi> = {}): TauriApi {
   return {
     getConfig: vi.fn().mockResolvedValue(null),
+    detectPlayers: vi.fn().mockResolvedValue(['default']),
     validateAndSaveConfig: vi.fn().mockResolvedValue(undefined),
     updateSettings: vi.fn().mockResolvedValue(undefined),
     resetHistory: vi.fn().mockResolvedValue(undefined),

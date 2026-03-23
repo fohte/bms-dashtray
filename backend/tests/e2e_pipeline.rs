@@ -18,11 +18,11 @@ use bms_dashtray::pipeline;
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Returns a UNIX timestamp in milliseconds for "today" at the given hour
+/// Returns a UNIX timestamp in seconds for "today" at the given hour
 /// (in local time), using the logical date (accounting for the 05:00 reset
 /// time) so that `get_today_records()` includes the record even when tests run
 /// between midnight and 05:00.
-fn today_millis(hour: u32) -> i64 {
+fn today_secs(hour: u32) -> i64 {
     use chrono::{Datelike as _, Local, NaiveTime, TimeZone as _};
     let now = Local::now();
     let reset_time = NaiveTime::from_hms_opt(5, 0, 0).unwrap_or_default();
@@ -42,8 +42,8 @@ fn today_millis(hour: u32) -> i64 {
         )
         .single();
     match dt {
-        Some(d) => d.timestamp_millis(),
-        None => Local::now().timestamp_millis(),
+        Some(d) => d.timestamp(),
+        None => Local::now().timestamp(),
     }
 }
 
@@ -375,8 +375,8 @@ fn pipeline_ctx(e2e_ctx: E2EContext) -> PipelineCycleContext {
 #[rstest]
 fn test_initial_startup_detects_existing_plays(e2e_ctx: E2EContext) {
     // Pre-populate the DB with plays (simulating beatoraja already has data)
-    insert_scoredatalog(&e2e_ctx.config, "song_a", 0, 6, today_millis(10));
-    insert_scoredatalog(&e2e_ctx.config, "song_b", 0, 4, today_millis(11));
+    insert_scoredatalog(&e2e_ctx.config, "song_a", 0, 6, today_secs(10));
+    insert_scoredatalog(&e2e_ctx.config, "song_b", 0, 4, today_secs(11));
     insert_songdata(&e2e_ctx.config, "song_a", "FREEDOM DiVE", 12, 4);
     insert_songdata(&e2e_ctx.config, "song_b", "Quaver", 10, 3);
 
@@ -428,7 +428,7 @@ fn test_realtime_update_on_db_change(mut pipeline_ctx: PipelineCycleContext) {
     let ctx = &mut pipeline_ctx;
 
     // Start with one existing play
-    insert_scoredatalog(&ctx.e2e.config, "song_a", 0, 5, today_millis(10));
+    insert_scoredatalog(&ctx.e2e.config, "song_a", 0, 5, today_secs(10));
     insert_songdata(&ctx.e2e.config, "song_a", "Quaver", 10, 3);
 
     // Cycle 1: initial read picks up existing play
@@ -445,7 +445,7 @@ fn test_realtime_update_on_db_change(mut pipeline_ctx: PipelineCycleContext) {
     assert_eq!(payloads[0].records[0].title, "Quaver");
 
     // Simulate a new play being added to the DB (beatoraja writes new data)
-    insert_scoredatalog(&ctx.e2e.config, "song_b", 0, 7, today_millis(12));
+    insert_scoredatalog(&ctx.e2e.config, "song_b", 0, 7, today_secs(12));
     insert_songdata(&ctx.e2e.config, "song_b", "FREEDOM DiVE", 12, 4);
 
     // Cycle 2: detects the new play
@@ -466,7 +466,7 @@ fn test_realtime_update_on_db_change(mut pipeline_ctx: PipelineCycleContext) {
     assert_record_titles(&second.records, &["FREEDOM DiVE", "Quaver"]);
 
     // Verify: same chart replayed (updated played_at) is detected
-    insert_scoredatalog(&ctx.e2e.config, "song_a", 0, 6, today_millis(14));
+    insert_scoredatalog(&ctx.e2e.config, "song_a", 0, 6, today_secs(14));
 
     // Cycle 3: detects the replay of song_a
     run_pipeline_cycle(
@@ -494,8 +494,8 @@ fn test_realtime_update_on_db_change(mut pipeline_ctx: PipelineCycleContext) {
 #[rstest]
 fn test_restart_restores_todays_history(e2e_ctx: E2EContext) {
     // --- First session ---
-    insert_scoredatalog(&e2e_ctx.config, "song_a", 0, 6, today_millis(10));
-    insert_scoredatalog(&e2e_ctx.config, "song_b", 0, 4, today_millis(11));
+    insert_scoredatalog(&e2e_ctx.config, "song_a", 0, 6, today_secs(10));
+    insert_scoredatalog(&e2e_ctx.config, "song_b", 0, 4, today_secs(11));
     insert_songdata(&e2e_ctx.config, "song_a", "FREEDOM DiVE", 12, 4);
     insert_songdata(&e2e_ctx.config, "song_b", "Quaver", 10, 3);
 
@@ -585,7 +585,7 @@ fn test_manual_reset_clears_history(mut pipeline_ctx: PipelineCycleContext) {
     let ctx = &mut pipeline_ctx;
 
     // Build up some history
-    insert_scoredatalog(&ctx.e2e.config, "song_a", 0, 6, today_millis(10));
+    insert_scoredatalog(&ctx.e2e.config, "song_a", 0, 6, today_secs(10));
     insert_songdata(&ctx.e2e.config, "song_a", "FREEDOM DiVE", 12, 4);
 
     run_pipeline_cycle(
@@ -627,7 +627,7 @@ fn test_manual_reset_clears_history(mut pipeline_ctx: PipelineCycleContext) {
     );
 
     // Verify: new plays after reset are still detected
-    insert_scoredatalog(&ctx.e2e.config, "song_b", 0, 4, today_millis(14));
+    insert_scoredatalog(&ctx.e2e.config, "song_b", 0, 4, today_secs(14));
     insert_songdata(&ctx.e2e.config, "song_b", "Quaver", 10, 3);
 
     run_pipeline_cycle(
@@ -655,9 +655,9 @@ fn test_level_distribution_data(mut pipeline_ctx: PipelineCycleContext) {
     let ctx = &mut pipeline_ctx;
 
     // Insert plays at different difficulty levels
-    insert_scoredatalog(&ctx.e2e.config, "song_lv10", 0, 6, today_millis(10));
-    insert_scoredatalog(&ctx.e2e.config, "song_lv12", 0, 5, today_millis(11));
-    insert_scoredatalog(&ctx.e2e.config, "song_lv12b", 0, 7, today_millis(12));
+    insert_scoredatalog(&ctx.e2e.config, "song_lv10", 0, 6, today_secs(10));
+    insert_scoredatalog(&ctx.e2e.config, "song_lv12", 0, 5, today_secs(11));
+    insert_scoredatalog(&ctx.e2e.config, "song_lv12b", 0, 7, today_secs(12));
     insert_songdata(&ctx.e2e.config, "song_lv10", "Easy Song", 10, 3);
     insert_songdata(&ctx.e2e.config, "song_lv12", "Hard Song A", 12, 4);
     insert_songdata(&ctx.e2e.config, "song_lv12b", "Hard Song B", 12, 4);
@@ -697,7 +697,7 @@ fn test_clear_lamp_update_tracking(e2e_ctx: E2EContext) {
     insert_songdata(&e2e_ctx.config, "song_a", "FREEDOM DiVE", 12, 4);
 
     // New play with better clear
-    insert_scoredatalog(&e2e_ctx.config, "song_a", 0, 7, today_millis(10));
+    insert_scoredatalog(&e2e_ctx.config, "song_a", 0, 7, today_secs(10));
 
     let mut store = HistoryStore::new(e2e_ctx.history_path.clone(), &e2e_ctx.config.reset_time);
     let emitter = MockEmitter::new();
