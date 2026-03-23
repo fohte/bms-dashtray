@@ -36,8 +36,24 @@ jobs:
     with:
       tag-name: ${{ needs.release-please.outputs.tag-name }}
 
-  build-nightly:
+  nightly-version:
     needs: release-please
+    if: needs.release-please.outputs.release-created != 'true' && github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Generate nightly version
+        id: version
+        run: |
+          base_version=$(jq -r '.version' backend/tauri.conf.json)
+          nightly_version="${base_version}-nightly.$(date -u '+%Y%m%d')"
+          echo "version=${nightly_version}" >> "$GITHUB_OUTPUT"
+
+  build-nightly:
+    needs: [release-please, nightly-version]
     if: needs.release-please.outputs.release-created != 'true' && github.event_name != 'workflow_dispatch'
     permissions:
       contents: write
@@ -45,9 +61,11 @@ jobs:
     secrets: inherit
     with:
       upload-artifact: true
+      updater-endpoint: https://github.com/fohte/bms-dashtray/releases/download/nightly/latest.json
+      nightly-version: ${{ needs.nightly-version.outputs.version }}
 
   publish-nightly:
-    needs: [release-please, build-nightly]
+    needs: [release-please, nightly-version, build-nightly]
     if: needs.release-please.outputs.release-created != 'true' && github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     concurrency:
@@ -67,6 +85,69 @@ jobs:
 
       - name: List artifacts
         run: find artifacts -type f | sort
+
+      - name: Generate latest.json for updater
+        env:
+          NIGHTLY_VERSION: ${{ needs.nightly-version.outputs.version }}
+          REPO: ${{ github.repository }}
+        run: |
+          base_url="https://github.com/${REPO}/releases/download/nightly"
+
+          # Read signature files
+          read_sig() {
+            local pattern="$1"
+            local sig_file
+            sig_file=$(find artifacts -name "${pattern}" -type f | head -1)
+            if [ -n "$sig_file" ]; then
+              cat "$sig_file"
+            else
+              echo ""
+            fi
+          }
+
+          darwin_aarch64_sig=$(read_sig "*aarch64.app.tar.gz.sig")
+          darwin_x64_sig=$(read_sig "*x64.app.tar.gz.sig")
+          linux_sig=$(read_sig "*.AppImage.tar.gz.sig")
+          windows_nsis_sig=$(read_sig "*x64-setup.nsis.zip.sig")
+
+          # Find artifact filenames (exclude .sig files)
+          find_artifact() {
+            local pattern="$1"
+            find artifacts -name "${pattern}" -not -name "*.sig" -type f | head -1 | xargs -I{} basename {}
+          }
+
+          darwin_aarch64_file=$(find_artifact "*aarch64.app.tar.gz")
+          darwin_x64_file=$(find_artifact "*x64.app.tar.gz")
+          linux_file=$(find_artifact "*.AppImage.tar.gz")
+          windows_nsis_file=$(find_artifact "*x64-setup.nsis.zip")
+
+          # Build latest.json
+          jq -n \
+            --arg version "$NIGHTLY_VERSION" \
+            --arg pub_date "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+            --arg notes "Nightly build from ${GITHUB_SHA::7}" \
+            --arg darwin_aarch64_url "${base_url}/${darwin_aarch64_file}" \
+            --arg darwin_aarch64_sig "$darwin_aarch64_sig" \
+            --arg darwin_x64_url "${base_url}/${darwin_x64_file}" \
+            --arg darwin_x64_sig "$darwin_x64_sig" \
+            --arg linux_url "${base_url}/${linux_file}" \
+            --arg linux_sig "$linux_sig" \
+            --arg windows_url "${base_url}/${windows_nsis_file}" \
+            --arg windows_sig "$windows_nsis_sig" \
+            '{
+              version: $version,
+              notes: $notes,
+              pub_date: $pub_date,
+              platforms: {
+                "darwin-aarch64": { url: $darwin_aarch64_url, signature: $darwin_aarch64_sig },
+                "darwin-x86_64": { url: $darwin_x64_url, signature: $darwin_x64_sig },
+                "linux-x86_64": { url: $linux_url, signature: $linux_sig },
+                "windows-x86_64": { url: $windows_url, signature: $windows_sig }
+              }
+            }' > artifacts/latest.json
+
+          echo "Generated latest.json:"
+          cat artifacts/latest.json
 
       - name: Delete existing nightly release
         run: gh release delete nightly --yes --cleanup-tag || true
