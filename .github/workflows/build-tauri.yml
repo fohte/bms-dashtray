@@ -98,10 +98,12 @@ jobs:
         if: inputs.upload-artifact
         id: artifact-paths
         shell: bash
+        env:
+          ARTIFACT_PATHS: ${{ steps.tauri-build.outputs.artifactPaths }}
         run: |
           {
             echo "paths<<EOF"
-            echo "${{ steps.tauri-build.outputs.artifactPaths }}" | jq -r '.[]'
+            echo "$ARTIFACT_PATHS" | jq -r '.[]'
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
