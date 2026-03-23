@@ -53,6 +53,12 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.9
 
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend -> target
+          cache-on-failure: true
+
       - name: Add Rust target (macOS cross-compile)
         if: matrix.platform == 'macos-latest'
         working-directory: backend
