@@ -8,7 +8,39 @@ Great for streamers who want an overlay showing live results, or for players who
 
 ## Installation
 
-Download the latest installer for your OS from the [Releases](https://github.com/fohte/bms-dashtray/releases) page.
+Download the installer for your platform from the [Releases](https://github.com/fohte/bms-dashtray/releases) page:
+
+- `bms-dashtray_<version>_x64-setup.exe` — Windows
+- `bms-dashtray_<version>_aarch64.dmg` — macOS (Apple Silicon)
+- `bms-dashtray_<version>_x64.dmg` — macOS (Intel)
+- `bms-dashtray_<version>_amd64.deb` — Linux (Debian / Ubuntu)
+- `bms-dashtray_<version>_amd64.AppImage` — Linux (other distros)
+
+The app checks for updates on launch and shows a notification bar when a new version is available. Click **"UPDATE"** to download and apply it.
+
+### Troubleshooting
+
+The app is not code-signed, so your OS may block it on first launch. This is expected and safe to bypass.
+
+<details>
+<summary><strong>Windows: "Windows protected your PC"</strong></summary>
+
+Click **"More info"**, then click **"Run anyway"**.
+
+</details>
+
+<details>
+<summary><strong>macOS: "bms-dashtray can't be opened"</strong></summary>
+
+Run the following command in Terminal after installing:
+
+```sh
+xattr -cr /Applications/bms-dashtray.app
+```
+
+Then open the app normally.
+
+</details>
 
 ## Usage
 
