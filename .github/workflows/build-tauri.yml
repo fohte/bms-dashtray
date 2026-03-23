@@ -10,6 +10,14 @@ on:
         required: false
         default: false
         type: boolean
+      updater-endpoint:
+        description: 'Override updater endpoint URL in tauri.conf.json'
+        required: false
+        type: string
+      nightly-version:
+        description: 'Override app version for nightly builds (e.g. 0.1.1-nightly.20260324)'
+        required: false
+        type: string
 
 name: build-tauri
 
@@ -86,6 +94,28 @@ jobs:
 
       - name: Install pnpm dependencies (frontend)
         run: cd frontend && pnpm install --frozen-lockfile
+
+      - name: Override updater endpoint for nightly
+        if: inputs.updater-endpoint
+        shell: bash
+        env:
+          UPDATER_ENDPOINT: ${{ inputs.updater-endpoint }}
+        run: |
+          jq --arg endpoint "$UPDATER_ENDPOINT" \
+            '.plugins.updater.endpoints = [$endpoint]' \
+            backend/tauri.conf.json > backend/tauri.conf.json.tmp
+          mv backend/tauri.conf.json.tmp backend/tauri.conf.json
+
+      - name: Override app version for nightly
+        if: inputs.nightly-version
+        shell: bash
+        env:
+          NIGHTLY_VERSION: ${{ inputs.nightly-version }}
+        run: |
+          jq --arg version "$NIGHTLY_VERSION" \
+            '.version = $version' \
+            backend/tauri.conf.json > backend/tauri.conf.json.tmp
+          mv backend/tauri.conf.json.tmp backend/tauri.conf.json
 
       - uses: tauri-apps/tauri-action@v0
         id: tauri-build
