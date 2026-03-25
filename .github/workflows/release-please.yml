@@ -47,9 +47,21 @@ jobs:
 
       - name: Generate nightly version
         id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           base_version=$(jq -r '.version' backend/tauri.conf.json)
-          nightly_version="${base_version}-nightly.$(date -u '+%Y%m%d')"
+          commit_hash=$(git rev-parse --short HEAD)
+
+          # Increment pre-release number from the last nightly release.
+          # Resets to 1 when base version changes.
+          nightly_num=1
+          prev_version=$(gh release download nightly --pattern 'latest.json' --output - 2>/dev/null | jq -r '.version // empty') || true
+          if [[ "$prev_version" =~ ^${base_version}-nightly\.([0-9]+) ]]; then
+            nightly_num=$(( BASH_REMATCH[1] + 1 ))
+          fi
+
+          nightly_version="${base_version}-nightly.${nightly_num}+${commit_hash}"
           echo "version=${nightly_version}" >> "$GITHUB_OUTPUT"
 
   build-nightly:
