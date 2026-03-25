@@ -15,7 +15,7 @@ on:
         required: false
         type: string
       nightly-version:
-        description: 'Override app version for nightly builds (e.g. 0.1.1-nightly.20538+abc1234)'
+        description: 'Override app version for nightly builds (e.g. 0.1.1-nightly.1+abc1234)'
         required: false
         type: string
 
