@@ -54,7 +54,7 @@ const containerStyle: CSSProperties = {
   backgroundColor: '#1A1A2E',
   borderBottom: '1px solid #1A1A1A',
   fontFamily: "'JetBrains Mono', monospace",
-  fontSize: '11px',
+  fontSize: 'var(--font-size-md)',
 }
 
 const textStyle: CSSProperties = {
@@ -68,7 +68,7 @@ const updateButtonStyle: CSSProperties = {
   borderRadius: '4px',
   color: '#3B82F6',
   fontFamily: "'JetBrains Mono', monospace",
-  fontSize: '10px',
+  fontSize: 'var(--font-size-sm)',
   fontWeight: 600,
   letterSpacing: '1px',
   padding: '3px 8px',
@@ -80,7 +80,7 @@ const dismissButtonStyle: CSSProperties = {
   border: 'none',
   color: '#475569',
   fontFamily: "'JetBrains Mono', monospace",
-  fontSize: '10px',
+  fontSize: 'var(--font-size-sm)',
   fontWeight: 600,
   padding: '3px 8px',
   cursor: 'pointer',

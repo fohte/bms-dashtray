@@ -50,7 +50,7 @@ const styles = {
   headerLabel: {
     fontFamily:
       "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    fontSize: '11px',
+    fontSize: 'var(--font-size-md)',
     fontWeight: 600,
     color: '#64748B',
     letterSpacing: '2px',
@@ -58,12 +58,12 @@ const styles = {
   },
   headerTotal: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '11px',
+    fontSize: 'var(--font-size-md)',
     fontWeight: 500,
     color: '#475569',
   },
   emptyMessage: {
-    fontSize: '12px',
+    fontSize: 'var(--font-size-md)',
     color: '#555555',
     textAlign: 'center',
     padding: '16px 0',
@@ -76,7 +76,7 @@ const styles = {
     height: '24px',
   },
   levelLabel: {
-    fontSize: '10px',
+    fontSize: 'var(--font-size-sm)',
     fontWeight: 600,
     color: '#64748B',
     minWidth: '38px',
@@ -97,7 +97,7 @@ const styles = {
     transition: 'width 0.3s ease',
   },
   countLabel: {
-    fontSize: '10px',
+    fontSize: 'var(--font-size-sm)',
     fontWeight: 700,
     color: '#94A3B8',
     minWidth: '16px',
