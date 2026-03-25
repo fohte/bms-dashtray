@@ -49,7 +49,11 @@ jobs:
         id: version
         run: |
           base_version=$(jq -r '.version' backend/tauri.conf.json)
-          nightly_version="${base_version}-nightly.$(date -u '+%Y%m%d')"
+          # Use epoch days as the pre-release number (stays under 65535 until ~2149,
+          # satisfying the MSI numeric pre-release constraint)
+          epoch_days=$(( $(date -u '+%s') / 86400 ))
+          commit_hash=$(git rev-parse --short HEAD)
+          nightly_version="${base_version}-nightly.${epoch_days}+${commit_hash}"
           echo "version=${nightly_version}" >> "$GITHUB_OUTPUT"
 
   build-nightly:
