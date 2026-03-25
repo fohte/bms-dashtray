@@ -3,6 +3,9 @@ name = "bms-dashtray"
 version = "0.1.2"
 edition = "2024"
 
+[features]
+devtools = ["tauri/devtools"]
+
 [build-dependencies]
 serde_json = { version = "=1.0.149", features = ["preserve_order"] }
 tauri-build = { version = "=2.5.6", features = [] }
