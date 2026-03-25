@@ -9,6 +9,11 @@ use serde::Deserialize;
 /// A song entry within a difficulty table folder.
 #[derive(Debug, Deserialize)]
 struct TableSong {
+    // libGDX's Json serializer omits null fields by default, so songs with
+    // sha256 = null in Java produce JSON without the sha256 key at all.
+    // serde(default) ensures these entries deserialize as empty strings and
+    // get skipped by the is_empty() check in build_table_level_map().
+    #[serde(default)]
     sha256: String,
 }
 
