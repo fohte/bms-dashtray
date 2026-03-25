@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.2](https://github.com/fohte/bms-dashtray/compare/v0.1.1...v0.1.2) (2026-03-25)
+
+
+### Features
+
+* enable Tauri auto-updater ([#50](https://github.com/fohte/bms-dashtray/issues/50)) ([7177981](https://github.com/fohte/bms-dashtray/commit/717798171759c4865af386763d0ce6f065f43181))
+
+
+### Bug Fixes
+
+* **backend:** interpret `scoredatalog.db` timestamps as UNIX seconds ([#51](https://github.com/fohte/bms-dashtray/issues/51)) ([a343b8c](https://github.com/fohte/bms-dashtray/commit/a343b8cc58d1b4efbb366c649d161a9efc5058ca))
+
 ## [0.1.1](https://github.com/fohte/bms-dashtray/compare/v0.1.0...v0.1.1) (2026-03-22)
 
 
