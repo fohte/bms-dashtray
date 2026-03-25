@@ -9,7 +9,6 @@ use serde::Deserialize;
 /// A song entry within a difficulty table folder.
 #[derive(Debug, Deserialize)]
 struct TableSong {
-    #[serde(default)]
     sha256: String,
 }
 
@@ -17,7 +16,6 @@ struct TableSong {
 /// The `name` field contains the level label (e.g. "★1", "st3").
 #[derive(Debug, Deserialize)]
 struct TableFolder {
-    #[serde(default)]
     name: String,
     #[serde(default)]
     songs: Vec<TableSong>,
@@ -202,12 +200,12 @@ mod tests {
     }
 
     #[rstest]
-    #[case::tag_prefix(
+    #[case::satellite(
         r#"{"name":"Satellite","tag":"st","folder":[{"name":"st3","songs":[{"sha256":"sha_a"}]}]}"#,
         "sha_a",
         "st3"
     )]
-    #[case::symbol_prefix(
+    #[case::insane(
         r#"{"name":"Insane","tag":"★","folder":[{"name":"★10","songs":[{"sha256":"sha_b"}]}]}"#,
         "sha_b",
         "★10"
