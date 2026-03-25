@@ -6,29 +6,32 @@ use std::path::{Path, PathBuf};
 use flate2::read::GzDecoder;
 use serde::Deserialize;
 
-/// Header portion of a .bmt difficulty table file.
+/// A song entry within a difficulty table folder.
 #[derive(Debug, Deserialize)]
-struct TableHeader {
-    #[serde(default)]
-    tag: String,
-    #[serde(default)]
-    symbol: String,
-}
-
-/// Single entry in the difficulty table data array.
-#[derive(Debug, Deserialize)]
-struct TableEntry {
+struct TableSong {
     #[serde(default)]
     sha256: String,
-    #[serde(default)]
-    level: String,
 }
 
-/// Parsed difficulty table: header + entries.
+/// A folder (level group) in the difficulty table.
+/// The `name` field contains the level label (e.g. "★1", "st3").
+#[derive(Debug, Deserialize)]
+struct TableFolder {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    songs: Vec<TableSong>,
+}
+
+/// Parsed difficulty table in beatoraja's .bmt cache format.
+///
+/// beatoraja serializes its `TableData` class via libGDX's Json serializer.
+/// The structure has top-level `name`/`tag` fields and a `folder` array,
+/// where each folder contains a `name` (the level label) and `songs` array.
 #[derive(Debug, Deserialize)]
 struct BmTable {
-    header: TableHeader,
-    body: Vec<TableEntry>,
+    #[serde(default)]
+    folder: Vec<TableFolder>,
 }
 
 /// A difficulty table level label for a song (e.g. "★24", "sl5").
@@ -124,22 +127,18 @@ pub fn build_table_level_map(
             }
         };
 
-        // Use tag first (as beatoraja does), fall back to symbol
-        let prefix = if !table.header.tag.is_empty() {
-            &table.header.tag
-        } else {
-            &table.header.symbol
-        };
-
-        for entry in &table.body {
-            if entry.sha256.is_empty() {
-                continue;
+        for folder in &table.folder {
+            let label = &folder.name;
+            for song in &folder.songs {
+                if song.sha256.is_empty() {
+                    continue;
+                }
+                map.entry(song.sha256.clone())
+                    .or_default()
+                    .push(TableLevel {
+                        label: label.clone(),
+                    });
             }
-
-            let label = format!("{prefix}{}", entry.level);
-            map.entry(entry.sha256.clone())
-                .or_default()
-                .push(TableLevel { label });
         }
     }
 
@@ -180,34 +179,40 @@ mod tests {
     fn test_read_bmt_file_parses_correctly(table_dir: TempDir) {
         let json = indoc! {r#"
             {
-                "header": {"name": "Satellite", "tag": "st", "symbol": ""},
-                "body": [
-                    {"md5": "aaa", "sha256": "sha_aaa", "level": "3"},
-                    {"md5": "bbb", "sha256": "sha_bbb", "level": "5"}
+                "name": "Satellite",
+                "tag": "st",
+                "folder": [
+                    {
+                        "name": "st3",
+                        "songs": [
+                            {"sha256": "sha_aaa", "title": "Song A"},
+                            {"sha256": "sha_bbb", "title": "Song B"}
+                        ]
+                    }
                 ]
             }
         "#};
         write_bmt(table_dir.path(), "test.bmt", json);
 
         let table = read_bmt_file(&table_dir.path().join("test.bmt")).unwrap();
-        assert_eq!(table.header.tag, "st");
-        assert_eq!(table.body.len(), 2);
-        assert_eq!(table.body[0].sha256, "sha_aaa");
-        assert_eq!(table.body[0].level, "3");
+        assert_eq!(table.folder.len(), 1);
+        assert_eq!(table.folder[0].name, "st3");
+        assert_eq!(table.folder[0].songs.len(), 2);
+        assert_eq!(table.folder[0].songs[0].sha256, "sha_aaa");
     }
 
     #[rstest]
     #[case::tag_prefix(
-        r#"{"header": {"tag": "st", "symbol": ""}, "body": [{"sha256": "sha_a", "level": "3"}]}"#,
+        r#"{"name":"Satellite","tag":"st","folder":[{"name":"st3","songs":[{"sha256":"sha_a"}]}]}"#,
         "sha_a",
         "st3"
     )]
-    #[case::symbol_fallback(
-        r#"{"header": {"tag": "", "symbol": "◆"}, "body": [{"sha256": "sha_b", "level": "10"}]}"#,
+    #[case::symbol_prefix(
+        r#"{"name":"Insane","tag":"★","folder":[{"name":"★10","songs":[{"sha256":"sha_b"}]}]}"#,
         "sha_b",
-        "◆10"
+        "★10"
     )]
-    fn test_build_table_level_map_label_prefix(
+    fn test_build_table_level_map_label(
         table_dir: TempDir,
         #[case] json: &str,
         #[case] sha256: &str,
@@ -223,14 +228,20 @@ mod tests {
     fn test_build_table_level_map_multiple_tables(table_dir: TempDir) {
         let json1 = indoc! {r#"
             {
-                "header": {"name": "Satellite", "tag": "st", "symbol": ""},
-                "body": [{"md5": "", "sha256": "sha_x", "level": "3"}]
+                "name": "Satellite",
+                "tag": "st",
+                "folder": [
+                    {"name": "st3", "songs": [{"sha256": "sha_x"}]}
+                ]
             }
         "#};
         let json2 = indoc! {r#"
             {
-                "header": {"name": "Insane", "tag": "", "symbol": "★"},
-                "body": [{"md5": "", "sha256": "sha_x", "level": "24"}]
+                "name": "Insane",
+                "tag": "★",
+                "folder": [
+                    {"name": "★24", "songs": [{"sha256": "sha_x"}]}
+                ]
             }
         "#};
         write_bmt(table_dir.path(), "satellite.bmt", json1);
@@ -246,13 +257,19 @@ mod tests {
     }
 
     #[rstest]
-    fn test_build_table_level_map_skips_entries_without_sha256(table_dir: TempDir) {
+    fn test_build_table_level_map_skips_songs_without_sha256(table_dir: TempDir) {
         let json = indoc! {r#"
             {
-                "header": {"name": "Test", "tag": "t", "symbol": ""},
-                "body": [
-                    {"md5": "only_md5", "sha256": "", "level": "1"},
-                    {"md5": "", "sha256": "has_sha", "level": "2"}
+                "name": "Test",
+                "tag": "t",
+                "folder": [
+                    {
+                        "name": "t1",
+                        "songs": [
+                            {"sha256": ""},
+                            {"sha256": "has_sha"}
+                        ]
+                    }
                 ]
             }
         "#};
@@ -260,7 +277,7 @@ mod tests {
 
         let map = build_table_level_map(table_dir.path()).unwrap();
         assert!(!map.contains_key(""));
-        assert_eq!(map.get("has_sha").unwrap()[0].label, "t2");
+        assert_eq!(map.get("has_sha").unwrap()[0].label, "t1");
     }
 
     #[rstest]
@@ -290,8 +307,11 @@ mod tests {
         // Write valid table
         let valid = indoc! {r#"
             {
-                "header": {"name": "Good", "tag": "g", "symbol": ""},
-                "body": [{"md5": "", "sha256": "sha_good", "level": "1"}]
+                "name": "Good",
+                "tag": "g",
+                "folder": [
+                    {"name": "g1", "songs": [{"sha256": "sha_good"}]}
+                ]
             }
         "#};
         write_bmt(table_dir.path(), "good.bmt", valid);
