@@ -14,7 +14,7 @@ notify = "=8.2.0"
 rusqlite = { version = "=0.38.0", features = ["bundled"] }
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.149"
-tauri = { version = "=2.10.3", features = ["devtools", "macos-private-api"] }
+tauri = { version = "=2.10.3", features = ["macos-private-api"] }
 tauri-plugin-dialog = "=2.6.0"
 tauri-plugin-process = "=2.3.1"
 tauri-plugin-updater = "=2.6.1"
