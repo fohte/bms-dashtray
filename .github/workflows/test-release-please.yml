@@ -5,36 +5,11 @@ on:
     branches:
       - release-please--branches--*
 
-permissions:
-  contents: write
-
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/create-github-app-token@v2
-        id: app-token
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.ref }}
-          token: ${{ steps.app-token.outputs.token }}
-
-      - run: rustup show
-
-      - name: Update Cargo.lock
-        working-directory: backend
-        run: cargo generate-lockfile
-
-      - name: Commit updated Cargo.lock
-        uses: suzuki-shunsuke/commit-action@v0.1.1
-        with:
-          commit_message: 'chore: update Cargo.lock'
-          workflow: deny
-          github_token: ${{ steps.app-token.outputs.token }}
+      - run: echo "Skip tests for release-please PR (only updates CHANGELOG and version)"
 
   unit-test-frontend:
     runs-on: ubuntu-latest
