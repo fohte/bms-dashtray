@@ -126,7 +126,7 @@ jobs:
         with:
           projectPath: ./backend
           tagName: ${{ inputs.tag-name }}
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} ${{ inputs.nightly-version && '--features devtools' || '' }}
 
       - name: Prepare nightly artifact paths
         if: inputs.upload-artifact
