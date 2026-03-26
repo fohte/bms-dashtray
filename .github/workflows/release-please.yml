@@ -59,7 +59,7 @@ jobs:
 
       - name: Update Cargo.lock
         working-directory: backend
-        run: cargo generate-lockfile
+        run: cargo update --workspace
 
       - uses: suzuki-shunsuke/commit-action@v0.1.1
         with:
