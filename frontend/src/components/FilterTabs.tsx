@@ -20,7 +20,7 @@ const styles = {
   tab: {
     padding: '4px 10px',
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '9px',
+    fontSize: 'var(--font-size-xs)',
     letterSpacing: '1px',
     borderRadius: '4px',
     cursor: 'pointer',

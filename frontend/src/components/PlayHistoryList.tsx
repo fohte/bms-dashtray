@@ -129,7 +129,7 @@ const styles = {
   title: {
     fontFamily:
       "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    fontSize: '13px',
+    fontSize: 'var(--font-size-base)',
     fontWeight: 600,
     color: '#ffffff',
     overflow: 'hidden',
@@ -138,7 +138,7 @@ const styles = {
   },
   subtitle: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '9px',
+    fontSize: 'var(--font-size-xs)',
     fontWeight: 500,
     color: '#475569',
     flexShrink: 0,
@@ -151,20 +151,20 @@ const styles = {
   },
   level: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '11px',
+    fontSize: 'var(--font-size-md)',
     fontWeight: 600,
     color: '#94A3B8',
     flexShrink: 0,
   },
   clearName: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '10px',
+    fontSize: 'var(--font-size-sm)',
     fontWeight: 700,
     letterSpacing: '1px',
   },
   previousClear: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '10px',
+    fontSize: 'var(--font-size-sm)',
     fontWeight: 500,
     color: '#475569',
   },
@@ -182,13 +182,13 @@ const styles = {
   },
   scoreValue: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '14px',
+    fontSize: 'var(--font-size-lg)',
     color: '#ffffff',
     fontWeight: 700,
   },
   scoreDiff: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '10px',
+    fontSize: 'var(--font-size-sm)',
     fontWeight: 500,
   },
   bpRow: {
@@ -198,13 +198,13 @@ const styles = {
   },
   bpValue: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '10px',
+    fontSize: 'var(--font-size-sm)',
     fontWeight: 500,
     color: '#64748B',
   },
   bpDiff: {
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '9px',
+    fontSize: 'var(--font-size-xs)',
     fontWeight: 500,
   },
   emptyState: {
@@ -213,7 +213,7 @@ const styles = {
     justifyContent: 'center',
     padding: '48px 24px',
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '13px',
+    fontSize: 'var(--font-size-base)',
     color: '#555555',
   },
 } satisfies Record<string, CSSProperties>

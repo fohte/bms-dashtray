@@ -17,11 +17,18 @@ function getTodayDate(): string {
   return `${yyyy}-${mm}-${dd}`
 }
 
+const DEFAULT_FONT_SIZE = 13
+
 export const App = () => {
   const [appState, setAppState] = useState<AppState>('loading')
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [todayDate, setTodayDate] = useState(() => getTodayDate())
   const [resetKey, setResetKey] = useState(0)
+
+  useEffect(() => {
+    const root = document.documentElement
+    root.style.fontSize = `${String(config?.fontSize ?? DEFAULT_FONT_SIZE)}px`
+  }, [config?.fontSize])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -128,7 +135,7 @@ export const App = () => {
         <span
           style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '14px',
+            fontSize: 'var(--font-size-lg)',
             fontWeight: 700,
             letterSpacing: '1.5px',
           }}
@@ -145,7 +152,7 @@ export const App = () => {
           <span
             style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '11px',
+              fontSize: 'var(--font-size-md)',
               fontWeight: 500,
               color: '#64748B',
             }}
@@ -159,7 +166,7 @@ export const App = () => {
               background: 'none',
               border: 'none',
               color: '#888888',
-              fontSize: '18px',
+              fontSize: 'var(--font-size-xl)',
               cursor: 'pointer',
               padding: '4px 8px',
             }}
@@ -192,7 +199,7 @@ export const App = () => {
             borderRadius: '4px',
             color: '#475569',
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '11px',
+            fontSize: 'var(--font-size-md)',
             fontWeight: 600,
             letterSpacing: '1px',
             padding: '6px 12px',

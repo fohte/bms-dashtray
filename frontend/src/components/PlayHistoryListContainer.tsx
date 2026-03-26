@@ -65,7 +65,7 @@ export function PlayHistoryListContainer({
           style={{
             fontFamily:
               "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-            fontSize: '11px',
+            fontSize: 'var(--font-size-md)',
             fontWeight: 600,
             letterSpacing: '2px',
             color: '#64748B',
@@ -76,7 +76,7 @@ export function PlayHistoryListContainer({
         <span
           style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '11px',
+            fontSize: 'var(--font-size-md)',
             fontWeight: 500,
             color: '#475569',
           }}
