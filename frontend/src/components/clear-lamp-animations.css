@@ -1,54 +1,10 @@
-@keyframes lampFlash1 {
+@keyframes lampFlash {
   0%,
   49% {
-    background-color: #e92f0a;
+    background-color: var(--lamp-main-color);
   }
   50%,
   100% {
-    background-color: #0f0300;
-  }
-}
-
-@keyframes lampFlash7 {
-  0%,
-  49% {
-    background-color: #effd09;
-  }
-  50%,
-  100% {
-    background-color: #fd0909;
-  }
-}
-
-@keyframes lampFlash8 {
-  0%,
-  49% {
-    background-color: #ffffff;
-  }
-  50%,
-  100% {
-    background-color: #09fafd;
-  }
-}
-
-@keyframes lampFlash9 {
-  0%,
-  49% {
-    background-color: #ffffff;
-  }
-  50%,
-  100% {
-    background-color: #3fff4d;
-  }
-}
-
-@keyframes lampFlash10 {
-  0%,
-  49% {
-    background-color: #ffffff;
-  }
-  50%,
-  100% {
-    background-color: #ffeb42;
+    background-color: var(--lamp-alt-color);
   }
 }

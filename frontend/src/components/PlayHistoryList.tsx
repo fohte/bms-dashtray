@@ -36,7 +36,13 @@ const CLEAR_LAMP_COLORS: Record<number, string> = {
   10: '#FFFFFF',
 }
 
-const FLASHING_CLEARS = new Set([1, 7, 8, 9, 10])
+const CLEAR_LAMP_ALT_COLORS: Record<number, string> = {
+  1: '#0F0300',
+  7: '#FD0909',
+  8: '#09FAFD',
+  9: '#3FFF4D',
+  10: '#FFEB42',
+}
 
 function getClearLampName(clear: number): string {
   return CLEAR_LAMP_NAMES[clear] ?? `Unknown(${String(clear)})`
@@ -201,17 +207,21 @@ function LampBar({
   clear,
   currentColor,
   previousColor,
-  flashing,
 }: {
   clear: number
   currentColor: string
   previousColor: string | null
-  flashing: boolean
 }) {
+  const altColor = CLEAR_LAMP_ALT_COLORS[clear]
   const cycleMs = clear === 1 ? 50 : 100
-  const flashAnimation = flashing
-    ? `lampFlash${clear} ${cycleMs}ms step-end infinite`
-    : undefined
+  const flashStyle =
+    altColor != null
+      ? ({
+          '--lamp-main-color': currentColor,
+          '--lamp-alt-color': altColor,
+          animation: `lampFlash ${cycleMs}ms step-end infinite`,
+        } as CSSProperties)
+      : {}
 
   if (previousColor != null && previousColor !== currentColor) {
     return (
@@ -235,7 +245,7 @@ function LampBar({
             flex: 1,
             borderRadius: '0 0 2px 2px',
             backgroundColor: currentColor,
-            animation: flashAnimation,
+            ...flashStyle,
           }}
         />
       </div>
@@ -247,7 +257,7 @@ function LampBar({
       style={{
         ...styles.lampBar,
         backgroundColor: currentColor,
-        animation: flashAnimation,
+        ...flashStyle,
       }}
     />
   )
@@ -270,8 +280,6 @@ function PlayHistoryEntry({
     record.previousClear != null
       ? getClearLampColor(record.previousClear)
       : null
-  const flashing = FLASHING_CLEARS.has(record.clear)
-
   const exScoreDiff = formatDiff(record.exScore, record.previousExScore, false)
   const bpDiff = formatDiff(record.minBp, record.previousMinBp, true)
 
@@ -281,7 +289,6 @@ function PlayHistoryEntry({
         clear={record.clear}
         currentColor={lampColor}
         previousColor={clearUpdated ? previousLampColor : null}
-        flashing={flashing}
       />
       <div style={styles.content}>
         <div style={styles.left as CSSProperties}>
