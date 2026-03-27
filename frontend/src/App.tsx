@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { PlayHistoryListContainer } from '@/components/PlayHistoryListContainer'
-import { UpdateNotification } from '@/components/UpdateNotification'
 import { SettingsScreenContainer } from '@/components/SettingsScreenContainer'
 import { SetupScreenContainer } from '@/components/SetupScreenContainer'
+import { UpdateNotification } from '@/components/UpdateNotification'
 import { tauriApi } from '@/tauri-api'
 import type { AppConfig } from '@/types'
 
@@ -14,7 +14,7 @@ function getTodayDate(): string {
   const yyyy = d.getFullYear()
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
+  return `${String(yyyy)}-${mm}-${dd}`
 }
 
 const DEFAULT_FONT_SIZE = 13
@@ -34,7 +34,9 @@ export const App = () => {
     const interval = setInterval(() => {
       setTodayDate(getTodayDate())
     }, 60_000)
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+    }
   }, [])
 
   useEffect(() => {

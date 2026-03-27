@@ -311,7 +311,7 @@ export const ManyEntries: Story = {
   args: {
     records: Array.from({ length: 20 }, (_, i) =>
       makeRecord({
-        title: `Song ${String(20 - i).padStart(2, '0')} - ${['FREEDOM DiVE', 'Groundbreaking', 'L9', 'Pandora', 'Ascension to Heaven'][i % 5]}`,
+        title: `Song ${String(20 - i).padStart(2, '0')} - ${['FREEDOM DiVE', 'Groundbreaking', 'L9', 'Pandora', 'Ascension to Heaven'][i % 5] ?? ''}`,
         level: 8 + (i % 5),
         clear: 1 + (i % 7),
         exScore: 800 + i * 50,

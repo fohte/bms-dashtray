@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
-
-import { type Update, check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
+import { check, type Update } from '@tauri-apps/plugin-updater'
+import { useCallback, useEffect, useState } from 'react'
 
 import {
   UpdateNotificationBar,
@@ -63,7 +62,11 @@ export const UpdateNotification = () => {
         let downloadedLength = 0
 
         await update.downloadAndInstall((progress) => {
-          if (progress.event === 'Started' && progress.data.contentLength) {
+          if (
+            progress.event === 'Started' &&
+            progress.data.contentLength != null &&
+            progress.data.contentLength > 0
+          ) {
             totalLength = progress.data.contentLength
           } else if (progress.event === 'Progress') {
             downloadedLength += progress.data.chunkLength

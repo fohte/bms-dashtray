@@ -2,7 +2,7 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-const host = process.env.TAURI_DEV_HOST
+const host = process.env['TAURI_DEV_HOST']
 
 export default defineConfig({
   plugins: [react()],
@@ -15,14 +15,16 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
-    host: host || false,
-    hmr: host
+    host: host != null && host !== '' ? host : false,
+    ...(host != null && host !== ''
       ? {
-          protocol: 'ws',
-          host,
-          port: 1421,
+          hmr: {
+            protocol: 'ws' as const,
+            host,
+            port: 1421,
+          },
         }
-      : undefined,
+      : {}),
     watch: {
       ignored: ['**/backend/**'],
     },

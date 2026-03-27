@@ -10,13 +10,13 @@ export interface TauriApi {
   validateAndSaveConfig: (
     beatorajaRoot: string,
     playerName: string,
-  ) => Promise<void>
+  ) => Promise<undefined>
   updateSettings: (settings: {
     resetTime?: string
     backgroundTransparent?: boolean
     fontSize?: number
-  }) => Promise<void>
-  resetHistory: () => Promise<void>
+  }) => Promise<undefined>
+  resetHistory: () => Promise<undefined>
   openFolderDialog: () => Promise<string | null>
   getTodayRecords: () => Promise<PlayRecord[]>
   listenScoresUpdated: (
@@ -29,9 +29,12 @@ export const tauriApi: TauriApi = {
   detectPlayers: (beatorajaRoot: string) =>
     invoke<string[]>('detect_players', { beatorajaRoot }),
   validateAndSaveConfig: (beatorajaRoot: string, playerName: string) =>
-    invoke<void>('validate_and_save_config', { beatorajaRoot, playerName }),
-  updateSettings: (settings) => invoke<void>('update_settings', settings),
-  resetHistory: () => invoke<void>('reset_history'),
+    invoke<undefined>('validate_and_save_config', {
+      beatorajaRoot,
+      playerName,
+    }),
+  updateSettings: (settings) => invoke<undefined>('update_settings', settings),
+  resetHistory: () => invoke<undefined>('reset_history'),
   openFolderDialog: () => open({ directory: true }),
   getTodayRecords: () => invoke<PlayRecord[]>('get_today_records'),
   listenScoresUpdated: (callback) =>

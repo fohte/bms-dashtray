@@ -75,7 +75,7 @@ function formatDiff(
 function generateFlashKeyframes(): string {
   return Object.entries(CLEAR_LAMP_ALT_COLORS)
     .map(([clear, altColor]) => {
-      const mainColor = CLEAR_LAMP_COLORS[Number(clear)]!
+      const mainColor = CLEAR_LAMP_COLORS[Number(clear)] ?? '#000000'
       return `
 @keyframes lampFlash${clear} {
   0%, 49% { background-color: ${mainColor}; }
@@ -231,7 +231,7 @@ function LampBar({
 }) {
   const cycleMs = clear === 1 ? 50 : 100
   const flashAnimation = flashing
-    ? `lampFlash${clear} ${cycleMs}ms step-end infinite`
+    ? `lampFlash${String(clear)} ${String(cycleMs)}ms step-end infinite`
     : undefined
 
   if (previousColor != null && previousColor !== currentColor) {
@@ -328,7 +328,8 @@ function PlayHistoryEntry({
             {clearUpdated && (
               <span style={styles.previousClear}>
                 {'< '}
-                {getClearLampName(record.previousClear!)}
+                {record.previousClear != null &&
+                  getClearLampName(record.previousClear)}
               </span>
             )}
           </div>
