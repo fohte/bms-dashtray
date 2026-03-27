@@ -1,3 +1,5 @@
+import '@/components/clear-lamp-animations.css'
+
 import type { CSSProperties } from 'react'
 
 import type { PlayRecord } from '@/types'
@@ -34,14 +36,6 @@ const CLEAR_LAMP_COLORS: Record<number, string> = {
   10: '#FFFFFF',
 }
 
-const CLEAR_LAMP_ALT_COLORS: Record<number, string> = {
-  1: '#0F0300',
-  7: '#FD0909',
-  8: '#09FAFD',
-  9: '#3FFF4D',
-  10: '#FFEB42',
-}
-
 const FLASHING_CLEARS = new Set([1, 7, 8, 9, 10])
 
 function getClearLampName(clear: number): string {
@@ -71,21 +65,6 @@ function formatDiff(
       : '#EF4444'
   return { text: `${sign}${String(diff)}`, color }
 }
-
-function generateFlashKeyframes(): string {
-  return Object.entries(CLEAR_LAMP_ALT_COLORS)
-    .map(([clear, altColor]) => {
-      const mainColor = CLEAR_LAMP_COLORS[Number(clear)]!
-      return `
-@keyframes lampFlash${clear} {
-  0%, 49% { background-color: ${mainColor}; }
-  50%, 100% { background-color: ${altColor}; }
-}`
-    })
-    .join('\n')
-}
-
-const flashingKeyframes = generateFlashKeyframes()
 
 const styles = {
   container: {
@@ -362,13 +341,10 @@ export function PlayHistoryList({ records }: PlayHistoryListProps) {
   }
 
   return (
-    <>
-      <style>{flashingKeyframes}</style>
-      <div style={styles.container as CSSProperties}>
-        {records.map((record, index) => (
-          <PlayHistoryEntry key={record.id} record={record} index={index} />
-        ))}
-      </div>
-    </>
+    <div style={styles.container as CSSProperties}>
+      {records.map((record, index) => (
+        <PlayHistoryEntry key={record.id} record={record} index={index} />
+      ))}
+    </div>
   )
 }
