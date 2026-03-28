@@ -23,6 +23,7 @@ function makeRecord(overrides: Partial<PlayRecord> = {}): PlayRecord {
     previousClear: null,
     previousExScore: null,
     previousMinBp: null,
+    isRetired: false,
     ...overrides,
   }
 }

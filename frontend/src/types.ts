@@ -30,6 +30,7 @@ export interface PlayRecord {
   previousClear: number | null
   previousExScore: number | null
   previousMinBp: number | null
+  isRetired: boolean
 }
 
 export interface ScoresUpdatedPayload {

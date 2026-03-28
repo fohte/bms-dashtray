@@ -173,6 +173,8 @@ impl DiffDetector {
                 .map(|levels| levels.iter().map(|l| l.label.clone()).collect())
                 .unwrap_or_default();
 
+            let is_retired = play.clear == 1 && play.consumed_notes < play.notes;
+
             records.push(PlayRecord {
                 id: uuid::Uuid::new_v4().to_string(),
                 sha256: play.sha256.clone(),
@@ -192,6 +194,7 @@ impl DiffDetector {
                 previous_clear: previous.as_ref().map(|p| p.clear),
                 previous_ex_score: previous.as_ref().map(|p| p.ex_score),
                 previous_min_bp: previous.as_ref().map(|p| p.min_bp),
+                is_retired,
             });
         }
 
@@ -253,12 +256,14 @@ mod tests {
             epg INTEGER NOT NULL,
             egr INTEGER NOT NULL,
             egd INTEGER NOT NULL,
+            ebd INTEGER NOT NULL,
             epr INTEGER NOT NULL,
             emr INTEGER NOT NULL,
             ems INTEGER NOT NULL,
             lpg INTEGER NOT NULL,
             lgr INTEGER NOT NULL,
             lgd INTEGER NOT NULL,
+            lbd INTEGER NOT NULL,
             lpr INTEGER NOT NULL,
             lmr INTEGER NOT NULL,
             lms INTEGER NOT NULL,
@@ -451,8 +456,8 @@ mod tests {
     ) {
         conn.execute(
             "INSERT OR REPLACE INTO scoredatalog \
-             (sha256, mode, clear, epg, egr, egd, epr, emr, ems, lpg, lgr, lgd, lpr, lmr, lms, minbp, notes, combo, date) \
-             VALUES (?1, ?2, ?3, ?4, ?5, 0, 0, 0, 0, ?6, ?7, 0, 0, 0, 0, ?8, 800, 500, ?9)",
+             (sha256, mode, clear, epg, egr, egd, ebd, epr, emr, ems, lpg, lgr, lgd, lbd, lpr, lmr, lms, minbp, notes, combo, date) \
+             VALUES (?1, ?2, ?3, ?4, ?5, 0, 0, 0, 0, 0, ?6, ?7, 0, 0, 0, 0, 0, ?8, 800, 500, ?9)",
             rusqlite::params![sha256, mode, clear, epg, egr, lpg, lgr, minbp, date],
         )
         .expect("insert scoredatalog");
@@ -764,5 +769,57 @@ mod tests {
             .unwrap();
 
         assert_previous_best(&results, Some(7), Some(440), Some(10));
+    }
+
+    #[rstest]
+    #[case::retired_mid_play(
+        1,   // clear: Failed
+        260, // consumed_notes (epg+egr+lpg+lgr = 100+50+80+30, all other judge = 0)
+        800, // notes
+        true,
+    )]
+    #[case::failed_but_completed(
+        1,   // clear: Failed
+        260, // consumed_notes == notes (all notes consumed)
+        260, // notes == consumed (260)
+        false,
+    )]
+    #[case::cleared_not_retired(
+        6,   // clear: Hard
+        260, // consumed < notes, but clear >= 2 so not retired
+        800,
+        false,
+    )]
+    fn test_is_retired(
+        test_dbs: TestDbs,
+        #[case] clear: i32,
+        #[case] _consumed: i32,
+        #[case] notes: i32,
+        #[case] expected_retired: bool,
+    ) {
+        // insert_scoredatalog sets epg=100,egr=50,lpg=80,lgr=30, all other judges=0.
+        // consumed_notes = 260, notes parameter controls the total.
+        // For the "failed_but_completed" case we set notes=260 so consumed==notes.
+        let conn = test_dbs.scoredatalog_conn();
+        conn.execute(
+            "INSERT OR REPLACE INTO scoredatalog \
+             (sha256, mode, clear, epg, egr, egd, ebd, epr, emr, ems, lpg, lgr, lgd, lbd, lpr, lmr, lms, minbp, notes, combo, date) \
+             VALUES ('abc123', 0, ?1, 100, 50, 0, 0, 0, 0, 0, 80, 30, 0, 0, 0, 0, 0, 15, ?2, 500, 1710400000)",
+            rusqlite::params![clear, notes],
+        )
+        .expect("insert scoredatalog");
+        drop(conn);
+
+        insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
+
+        let mut detector = DiffDetector::new();
+        detector.load_best_scores(&test_dbs.paths.score).unwrap();
+
+        let results = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].is_retired, expected_retired);
     }
 }

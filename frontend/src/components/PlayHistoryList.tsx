@@ -44,11 +44,16 @@ const CLEAR_LAMP_ALT_COLORS: Record<number, string> = {
   10: '#FFEB42',
 }
 
-function getClearLampName(clear: number): string {
+function getClearLampName(clear: number, isRetired: boolean): string {
+  if (clear === 1 && isRetired) return 'Retired'
   return CLEAR_LAMP_NAMES[clear] ?? `Unknown(${String(clear)})`
 }
 
-function getClearLampColor(clear: number): string {
+/** Dimmer red for mid-play retirement, distinct from full-play Failed. */
+const RETIRED_LAMP_COLOR = '#8B2500'
+
+function getClearLampColor(clear: number, isRetired: boolean): string {
+  if (clear === 1 && isRetired) return RETIRED_LAMP_COLOR
   return CLEAR_LAMP_COLORS[clear] ?? '#555555'
 }
 
@@ -205,14 +210,17 @@ const styles = {
 
 function LampBar({
   clear,
+  isRetired,
   currentColor,
   previousColor,
 }: {
   clear: number
+  isRetired: boolean
   currentColor: string
   previousColor: string | null
 }) {
-  const altColor = CLEAR_LAMP_ALT_COLORS[clear]
+  // No flash animation for retired plays — the dimmer color is enough distinction.
+  const altColor = isRetired ? undefined : CLEAR_LAMP_ALT_COLORS[clear]
   const cycleMs = clear === 1 ? 50 : 100
   const flashStyle =
     altColor != null
@@ -270,15 +278,15 @@ function PlayHistoryEntry({
   record: PlayRecord
   index: number
 }) {
-  const lampColor = getClearLampColor(record.clear)
-  const clearName = getClearLampName(record.clear)
+  const lampColor = getClearLampColor(record.clear, record.isRetired)
+  const clearName = getClearLampName(record.clear, record.isRetired)
   const bgColor = index % 2 === 0 ? '#111111' : '#0A0A0A'
 
   const clearUpdated =
     record.previousClear != null && record.clear > record.previousClear
   const previousLampColor =
     record.previousClear != null
-      ? getClearLampColor(record.previousClear)
+      ? getClearLampColor(record.previousClear, false)
       : null
   const exScoreDiff = formatDiff(record.exScore, record.previousExScore, false)
   const bpDiff = formatDiff(record.minBp, record.previousMinBp, true)
@@ -287,6 +295,7 @@ function PlayHistoryEntry({
     <div style={{ ...styles.entry, backgroundColor: bgColor }}>
       <LampBar
         clear={record.clear}
+        isRetired={record.isRetired}
         currentColor={lampColor}
         previousColor={clearUpdated ? previousLampColor : null}
       />
@@ -315,7 +324,7 @@ function PlayHistoryEntry({
               <span style={styles.previousClear}>
                 {'< '}
                 {record.previousClear != null &&
-                  getClearLampName(record.previousClear)}
+                  getClearLampName(record.previousClear, false)}
               </span>
             )}
           </div>

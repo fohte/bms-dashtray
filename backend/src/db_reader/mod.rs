@@ -22,6 +22,8 @@ pub struct ScoreDataLog {
     pub min_bp: i32,
     pub notes: i32,
     pub combo: i32,
+    /// Number of notes consumed by judgements (used to detect mid-play retirement).
+    pub consumed_notes: i32,
     /// ISO 8601 formatted date string converted from UNIX time (seconds).
     pub played_at: String,
     /// Raw UNIX timestamp in seconds from the database.
@@ -62,28 +64,47 @@ fn unix_secs_to_iso8601(secs: i64) -> Result<String, rusqlite::Error> {
     Ok(dt.format("%Y-%m-%dT%H:%M:%SZ").to_string())
 }
 
+/// beatoraja mode value for PMS (9-key / popn).
+/// In PMS, BAD (ebd/lbd) does not consume notes (`judgeVanish=false`),
+/// unlike 5key/7key where BAD does consume notes.
+const MODE_PMS: i32 = 2;
+
 pub fn read_all_score_data_logs(path: &Path) -> Result<Vec<ScoreDataLog>, DBError> {
     let conn = open_readonly_checked(path)?;
     let mut stmt = conn.prepare(
-        "SELECT sha256, mode, clear, epg, egr, lpg, lgr, minbp, notes, combo, date \
+        "SELECT sha256, mode, clear, epg, egr, egd, ebd, epr, lpg, lgr, lgd, lbd, lpr, \
+         minbp, notes, combo, date \
          FROM scoredatalog",
     )?;
 
     let rows = stmt.query_map([], |row| {
+        let mode: i32 = row.get(1)?;
         let epg: i32 = row.get(3)?;
         let egr: i32 = row.get(4)?;
-        let lpg: i32 = row.get(5)?;
-        let lgr: i32 = row.get(6)?;
-        let date_secs: i64 = row.get(10)?;
+        let egd: i32 = row.get(5)?;
+        let ebd: i32 = row.get(6)?;
+        let epr: i32 = row.get(7)?;
+        let lpg: i32 = row.get(8)?;
+        let lgr: i32 = row.get(9)?;
+        let lgd: i32 = row.get(10)?;
+        let lbd: i32 = row.get(11)?;
+        let lpr: i32 = row.get(12)?;
+        let notes: i32 = row.get(14)?;
+        let date_secs: i64 = row.get(16)?;
+
+        // In PMS mode, BAD does not consume notes (judgeVanish=false for BAD).
+        let bad_count = if mode == MODE_PMS { 0 } else { ebd + lbd };
+        let consumed_notes = epg + lpg + egr + lgr + egd + lgd + bad_count + epr + lpr;
 
         Ok(ScoreDataLog {
             sha256: row.get(0)?,
-            mode: row.get(1)?,
+            mode,
             clear: row.get(2)?,
             ex_score: epg * 2 + egr + lpg * 2 + lgr,
-            min_bp: row.get(7)?,
-            notes: row.get(8)?,
-            combo: row.get(9)?,
+            min_bp: row.get(13)?,
+            notes,
+            combo: row.get(15)?,
+            consumed_notes,
             played_at: unix_secs_to_iso8601(date_secs)?,
             date_secs,
         })
@@ -108,12 +129,14 @@ mod tests {
             epg INTEGER NOT NULL,
             egr INTEGER NOT NULL,
             egd INTEGER NOT NULL,
+            ebd INTEGER NOT NULL,
             epr INTEGER NOT NULL,
             emr INTEGER NOT NULL,
             ems INTEGER NOT NULL,
             lpg INTEGER NOT NULL,
             lgr INTEGER NOT NULL,
             lgd INTEGER NOT NULL,
+            lbd INTEGER NOT NULL,
             lpr INTEGER NOT NULL,
             lmr INTEGER NOT NULL,
             lms INTEGER NOT NULL,
@@ -167,8 +190,8 @@ mod tests {
     ) {
         conn.execute(
             "INSERT INTO scoredatalog \
-             (sha256, mode, clear, epg, egr, egd, epr, emr, ems, lpg, lgr, lgd, lpr, lmr, lms, minbp, notes, combo, date) \
-             VALUES (?1, ?2, ?3, ?4, ?5, 0, 0, 0, 0, ?6, ?7, 0, 0, 0, 0, ?8, ?9, ?10, ?11)",
+             (sha256, mode, clear, epg, egr, egd, ebd, epr, emr, ems, lpg, lgr, lgd, lbd, lpr, lmr, lms, minbp, notes, combo, date) \
+             VALUES (?1, ?2, ?3, ?4, ?5, 0, 0, 0, 0, 0, ?6, ?7, 0, 0, 0, 0, 0, ?8, ?9, ?10, ?11)",
             rusqlite::params![sha256, mode, clear, epg, egr, lpg, lgr, minbp, notes, combo, date],
         )
         .expect("failed to insert record");
@@ -203,6 +226,8 @@ mod tests {
         assert_eq!(record.min_bp, 15);
         assert_eq!(record.notes, 800);
         assert_eq!(record.combo, 500);
+        // consumed_notes = epg + lpg + egr + lgr + 0 (egd,lgd,ebd,lbd,epr,lpr all 0)
+        assert_eq!(record.consumed_notes, 100 + 80 + 50 + 30);
         assert_eq!(record.played_at, "2024-03-14T07:06:40Z");
         assert_eq!(record.date_secs, 1710400000);
     }
@@ -265,6 +290,66 @@ mod tests {
             [],
         );
         assert!(result.is_err());
+    }
+
+    struct JudgeCounts {
+        epg: i32,
+        egr: i32,
+        egd: i32,
+        ebd: i32,
+        epr: i32,
+        lpg: i32,
+        lgr: i32,
+        lgd: i32,
+        lbd: i32,
+        lpr: i32,
+    }
+
+    fn insert_record_full(
+        conn: &Connection,
+        sha256: &str,
+        mode: i32,
+        clear: i32,
+        j: &JudgeCounts,
+        notes: i32,
+        date: i64,
+    ) {
+        conn.execute(
+            "INSERT INTO scoredatalog \
+             (sha256, mode, clear, epg, egr, egd, ebd, epr, emr, ems, lpg, lgr, lgd, lbd, lpr, lmr, lms, minbp, notes, combo, date) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 0, ?9, ?10, ?11, ?12, ?13, 0, 0, 0, ?14, 0, ?15)",
+            rusqlite::params![sha256, mode, clear, j.epg, j.egr, j.egd, j.ebd, j.epr, j.lpg, j.lgr, j.lgd, j.lbd, j.lpr, notes, date],
+        )
+        .expect("failed to insert record");
+    }
+
+    #[rstest]
+    #[case::seven_key_all_consumed(
+        0,  // mode: 7key
+        JudgeCounts { epg: 100, egr: 50, egd: 10, ebd: 5, epr: 3, lpg: 80, lgr: 30, lgd: 8, lbd: 4, lpr: 2 },
+        // consumed = 100+80+50+30+10+8+5+4+3+2 = 292
+        292,
+    )]
+    #[case::pms_excludes_bad(
+        2,  // mode: PMS (9key)
+        JudgeCounts { epg: 100, egr: 50, egd: 10, ebd: 5, epr: 3, lpg: 80, lgr: 30, lgd: 8, lbd: 4, lpr: 2 },
+        // consumed = 100+80+50+30+10+8+3+2 = 283 (ebd=5 + lbd=4 excluded)
+        283,
+    )]
+    fn test_consumed_notes(
+        test_db: TestDb,
+        #[case] mode: i32,
+        #[case] judge: JudgeCounts,
+        #[case] expected_consumed: i32,
+    ) {
+        let conn = test_db.conn();
+        insert_record_full(&conn, "abc123", mode, 1, &judge, 500, 1710400000);
+        drop(conn);
+
+        let results = read_all_score_data_logs(&test_db.scoredatalog_path())
+            .expect("failed to read score data logs");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].consumed_notes, expected_consumed);
     }
 
     #[rstest]
