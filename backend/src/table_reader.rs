@@ -15,6 +15,8 @@ struct TableSong {
     // get skipped by the is_empty() check in build_table_level_map().
     #[serde(default)]
     sha256: String,
+    #[serde(default)]
+    md5: String,
 }
 
 /// A folder (level group) in the difficulty table.
@@ -97,9 +99,12 @@ fn read_bmt_file(path: &Path) -> Result<BmTable, TableReaderError> {
 /// by reading all .bmt files in the given directory.
 ///
 /// Songs that appear in multiple tables will have multiple entries.
-/// md5-only entries are ignored since PlayRecord uses sha256 for identification.
+/// For songs that only have an md5 hash (no sha256), the `md5_to_sha256` map
+/// is used to resolve the sha256. Songs with neither sha256 nor a resolvable
+/// md5 are skipped.
 pub fn build_table_level_map(
     table_dir: &Path,
+    md5_to_sha256: &HashMap<String, String>,
 ) -> Result<HashMap<String, Vec<TableLevel>>, TableReaderError> {
     let mut map: HashMap<String, Vec<TableLevel>> = HashMap::new();
 
@@ -133,14 +138,20 @@ pub fn build_table_level_map(
         for folder in &table.folder {
             let label = &folder.name;
             for song in &folder.songs {
-                if song.sha256.is_empty() {
+                let sha256 = if !song.sha256.is_empty() {
+                    &song.sha256
+                } else if !song.md5.is_empty() {
+                    match md5_to_sha256.get(&song.md5) {
+                        Some(resolved) => resolved,
+                        None => continue,
+                    }
+                } else {
                     continue;
-                }
-                map.entry(song.sha256.clone())
-                    .or_default()
-                    .push(TableLevel {
-                        label: label.clone(),
-                    });
+                };
+
+                map.entry(sha256.clone()).or_default().push(TableLevel {
+                    label: label.clone(),
+                });
             }
         }
     }
@@ -223,7 +234,7 @@ mod tests {
     ) {
         write_bmt(table_dir.path(), "table.bmt", json);
 
-        let map = build_table_level_map(table_dir.path()).unwrap();
+        let map = build_table_level_map(table_dir.path(), &HashMap::new()).unwrap();
         assert_eq!(map.get(sha256).unwrap()[0].label, expected_label);
     }
 
@@ -250,7 +261,7 @@ mod tests {
         write_bmt(table_dir.path(), "satellite.bmt", json1);
         write_bmt(table_dir.path(), "insane.bmt", json2);
 
-        let map = build_table_level_map(table_dir.path()).unwrap();
+        let map = build_table_level_map(table_dir.path(), &HashMap::new()).unwrap();
         let levels = map.get("sha_x").unwrap();
         assert_eq!(levels.len(), 2);
 
@@ -278,7 +289,7 @@ mod tests {
         "#};
         write_bmt(table_dir.path(), "test.bmt", json);
 
-        let map = build_table_level_map(table_dir.path()).unwrap();
+        let map = build_table_level_map(table_dir.path(), &HashMap::new()).unwrap();
         assert!(!map.contains_key(""));
         assert_eq!(map.get("has_sha").unwrap()[0].label, "t1");
     }
@@ -294,14 +305,14 @@ mod tests {
         } else {
             (None, PathBuf::from("/nonexistent/table/dir"))
         };
-        let map = build_table_level_map(&dir).unwrap();
+        let map = build_table_level_map(&dir, &HashMap::new()).unwrap();
         assert!(map.is_empty());
     }
 
     #[rstest]
     fn test_build_table_level_map_skips_non_bmt_files(table_dir: TempDir) {
         fs::write(table_dir.path().join("readme.txt"), "not a table").unwrap();
-        let map = build_table_level_map(table_dir.path()).unwrap();
+        let map = build_table_level_map(table_dir.path(), &HashMap::new()).unwrap();
         assert!(map.is_empty());
     }
 
@@ -322,8 +333,71 @@ mod tests {
         // Write malformed file (not valid gzip)
         fs::write(table_dir.path().join("bad.bmt"), "not gzip data").unwrap();
 
-        let map = build_table_level_map(table_dir.path()).unwrap();
+        let map = build_table_level_map(table_dir.path(), &HashMap::new()).unwrap();
         assert_eq!(map.get("sha_good").unwrap()[0].label, "g1");
+    }
+
+    #[rstest]
+    fn test_build_table_level_map_md5_fallback(table_dir: TempDir) {
+        let json = indoc! {r#"
+            {
+                "name": "Insane",
+                "tag": "★",
+                "folder": [
+                    {
+                        "name": "★24",
+                        "songs": [
+                            {"md5": "md5_aaa"},
+                            {"md5": "md5_bbb"},
+                            {"sha256": "sha_direct"}
+                        ]
+                    }
+                ]
+            }
+        "#};
+        write_bmt(table_dir.path(), "insane.bmt", json);
+
+        let mut md5_to_sha256 = HashMap::new();
+        md5_to_sha256.insert("md5_aaa".to_string(), "sha_from_md5_aaa".to_string());
+        // md5_bbb is not in the map, so it should be skipped
+
+        let map = build_table_level_map(table_dir.path(), &md5_to_sha256).unwrap();
+
+        // md5_aaa resolved to sha_from_md5_aaa
+        assert_eq!(map.get("sha_from_md5_aaa").unwrap()[0].label, "★24");
+        // sha_direct used directly
+        assert_eq!(map.get("sha_direct").unwrap()[0].label, "★24");
+        // md5_bbb not resolvable, skipped
+        assert!(!map.contains_key("md5_bbb"));
+        assert_eq!(map.len(), 2);
+    }
+
+    #[rstest]
+    fn test_build_table_level_map_sha256_takes_priority_over_md5(table_dir: TempDir) {
+        let json = indoc! {r#"
+            {
+                "name": "Test",
+                "tag": "t",
+                "folder": [
+                    {
+                        "name": "t1",
+                        "songs": [
+                            {"sha256": "sha_direct", "md5": "md5_aaa"}
+                        ]
+                    }
+                ]
+            }
+        "#};
+        write_bmt(table_dir.path(), "test.bmt", json);
+
+        let mut md5_to_sha256 = HashMap::new();
+        md5_to_sha256.insert("md5_aaa".to_string(), "sha_from_md5".to_string());
+
+        let map = build_table_level_map(table_dir.path(), &md5_to_sha256).unwrap();
+
+        // sha256 field takes priority; md5 fallback is not used
+        assert_eq!(map.get("sha_direct").unwrap()[0].label, "t1");
+        assert!(!map.contains_key("sha_from_md5"));
     }
 
     #[rstest]

@@ -4,7 +4,7 @@ mod song_metadata;
 
 pub use best_score::{BestScore, read_all_best_scores};
 pub use score_log::read_score_log;
-pub use song_metadata::read_song_metadata;
+pub use song_metadata::{build_md5_to_sha256_map, read_song_metadata};
 
 use std::path::Path;
 use std::time::Duration;

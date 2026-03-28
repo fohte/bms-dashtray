@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use super::open_readonly;
@@ -43,6 +44,30 @@ pub fn read_song_metadata(
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e),
     }
+}
+
+/// Builds a lookup map from md5 to sha256 using songdata.db.
+///
+/// Only entries where both md5 and sha256 are non-empty are included.
+/// When multiple rows share the same md5, the last one wins.
+pub fn build_md5_to_sha256_map(path: &Path) -> Result<HashMap<String, String>, rusqlite::Error> {
+    let conn = open_readonly(path)?;
+
+    let mut stmt = conn.prepare("SELECT md5, sha256 FROM song WHERE md5 != '' AND sha256 != ''")?;
+
+    let rows = stmt.query_map([], |row| {
+        let md5: String = row.get(0)?;
+        let sha256: String = row.get(1)?;
+        Ok((md5, sha256))
+    })?;
+
+    let mut map = HashMap::new();
+    for row in rows {
+        let (md5, sha256) = row?;
+        map.insert(md5, sha256);
+    }
+
+    Ok(map)
 }
 
 #[cfg(test)]
@@ -131,5 +156,22 @@ mod tests {
     ) {
         let result = read_song_metadata(songdata_db.path(), sha256).unwrap();
         assert_eq!(result, expected);
+    }
+
+    #[rstest]
+    fn test_build_md5_to_sha256_map(songdata_db: NamedTempFile) {
+        // The fixture already has one row: md5="md5hash", sha256="abc123def456"
+        let conn = rusqlite::Connection::open(songdata_db.path()).unwrap();
+        conn.execute(
+            "INSERT INTO song (md5, sha256, title, artist, level, difficulty, notes, mode, path)
+             VALUES ('md5_second', 'sha256_second', 'Song 2', 'Artist 2', 10, 2, 1000, 0, '/path/to/song2.bms')",
+            [],
+        ).unwrap();
+        drop(conn);
+
+        let map = build_md5_to_sha256_map(songdata_db.path()).unwrap();
+        assert_eq!(map.get("md5hash").unwrap(), "abc123def456");
+        assert_eq!(map.get("md5_second").unwrap(), "sha256_second");
+        assert_eq!(map.len(), 2);
     }
 }
