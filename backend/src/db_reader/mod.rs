@@ -77,33 +77,52 @@ pub fn read_all_score_data_logs(path: &Path) -> Result<Vec<ScoreDataLog>, DBErro
          FROM scoredatalog",
     )?;
 
+    // Column indices matching the SELECT clause above.
+    const COL_SHA256: usize = 0;
+    const COL_MODE: usize = 1;
+    const COL_CLEAR: usize = 2;
+    const COL_EPG: usize = 3;
+    const COL_EGR: usize = 4;
+    const COL_EGD: usize = 5;
+    const COL_EBD: usize = 6;
+    const COL_EPR: usize = 7;
+    const COL_LPG: usize = 8;
+    const COL_LGR: usize = 9;
+    const COL_LGD: usize = 10;
+    const COL_LBD: usize = 11;
+    const COL_LPR: usize = 12;
+    const COL_MINBP: usize = 13;
+    const COL_NOTES: usize = 14;
+    const COL_COMBO: usize = 15;
+    const COL_DATE: usize = 16;
+
     let rows = stmt.query_map([], |row| {
-        let mode: i32 = row.get(1)?;
-        let epg: i32 = row.get(3)?;
-        let egr: i32 = row.get(4)?;
-        let egd: i32 = row.get(5)?;
-        let ebd: i32 = row.get(6)?;
-        let epr: i32 = row.get(7)?;
-        let lpg: i32 = row.get(8)?;
-        let lgr: i32 = row.get(9)?;
-        let lgd: i32 = row.get(10)?;
-        let lbd: i32 = row.get(11)?;
-        let lpr: i32 = row.get(12)?;
-        let notes: i32 = row.get(14)?;
-        let date_secs: i64 = row.get(16)?;
+        let mode: i32 = row.get(COL_MODE)?;
+        let epg: i32 = row.get(COL_EPG)?;
+        let egr: i32 = row.get(COL_EGR)?;
+        let egd: i32 = row.get(COL_EGD)?;
+        let ebd: i32 = row.get(COL_EBD)?;
+        let epr: i32 = row.get(COL_EPR)?;
+        let lpg: i32 = row.get(COL_LPG)?;
+        let lgr: i32 = row.get(COL_LGR)?;
+        let lgd: i32 = row.get(COL_LGD)?;
+        let lbd: i32 = row.get(COL_LBD)?;
+        let lpr: i32 = row.get(COL_LPR)?;
+        let notes: i32 = row.get(COL_NOTES)?;
+        let date_secs: i64 = row.get(COL_DATE)?;
 
         // In PMS mode, BAD does not consume notes (judgeVanish=false for BAD).
         let bad_count = if mode == MODE_PMS { 0 } else { ebd + lbd };
         let consumed_notes = epg + lpg + egr + lgr + egd + lgd + bad_count + epr + lpr;
 
         Ok(ScoreDataLog {
-            sha256: row.get(0)?,
+            sha256: row.get(COL_SHA256)?,
             mode,
-            clear: row.get(2)?,
+            clear: row.get(COL_CLEAR)?,
             ex_score: epg * 2 + egr + lpg * 2 + lgr,
-            min_bp: row.get(13)?,
+            min_bp: row.get(COL_MINBP)?,
             notes,
-            combo: row.get(15)?,
+            combo: row.get(COL_COMBO)?,
             consumed_notes,
             played_at: unix_secs_to_iso8601(date_secs)?,
             date_secs,
