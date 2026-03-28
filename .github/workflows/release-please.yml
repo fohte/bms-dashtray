@@ -112,109 +112,32 @@ jobs:
           nightly_version="${bumped_version}-${nightly_num}"
           echo "version=${nightly_version}" >> "$GITHUB_OUTPUT"
 
-  build-nightly:
+  cleanup-nightly:
     needs: [release-please, nightly-version]
+    if: needs.release-please.outputs.release-created != 'true' && github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete existing nightly release
+        run: gh release delete nightly --yes --cleanup-tag || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+  build-nightly:
+    needs: [release-please, nightly-version, cleanup-nightly]
     if: needs.release-please.outputs.release-created != 'true' && github.event_name != 'workflow_dispatch'
     permissions:
       contents: write
     uses: ./.github/workflows/build-tauri.yml
     secrets: inherit
     with:
-      upload-artifact: true
+      tag-name: nightly
+      prerelease: true
+      release-name: 'Nightly'
+      release-body: |
+        > [!WARNING]
+        > This is an unstable pre-release build. Use at your own risk.
       updater-endpoint: https://github.com/fohte/bms-dashtray/releases/download/nightly/latest.json
       nightly-version: ${{ needs.nightly-version.outputs.version }}
-
-  publish-nightly:
-    needs: [release-please, nightly-version, build-nightly]
-    if: needs.release-please.outputs.release-created != 'true' && github.event_name != 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: publish-nightly
-      cancel-in-progress: true
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download all nightly artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: nightly-*
-          path: artifacts
-          merge-multiple: true
-
-      - name: List artifacts
-        run: find artifacts -type f | sort
-
-      - name: Generate latest.json from updater metadata
-        env:
-          NIGHTLY_VERSION: ${{ needs.nightly-version.outputs.version }}
-          REPO: ${{ github.repository }}
-        run: |
-          base_url="https://github.com/${REPO}/releases/download/nightly"
-
-          # Start with base JSON
-          latest_json=$(jq -n \
-            --arg version "$NIGHTLY_VERSION" \
-            --arg pub_date "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-            --arg notes "Nightly build from ${GITHUB_SHA::7}" \
-            '{version: $version, notes: $notes, pub_date: $pub_date, platforms: {}}')
-
-          # Read each updater metadata file and add to platforms
-          metadata_count=0
-          for meta_file in artifacts/updater-metadata-*.json; do
-            if [ ! -f "$meta_file" ]; then
-              echo "::error::No updater metadata files found"
-              exit 1
-            fi
-
-            platform=$(jq -r '.platform' "$meta_file")
-            filename=$(jq -r '.filename' "$meta_file")
-            signature=$(jq -r '.signature' "$meta_file")
-
-            if [ -z "$platform" ] || [ -z "$filename" ] || [ -z "$signature" ]; then
-              echo "::error::Invalid metadata in $meta_file"
-              cat "$meta_file"
-              exit 1
-            fi
-
-            latest_json=$(echo "$latest_json" | jq \
-              --arg platform "$platform" \
-              --arg url "${base_url}/${filename}" \
-              --arg signature "$signature" \
-              '.platforms[$platform] = {url: $url, signature: $signature}')
-
-            metadata_count=$((metadata_count + 1))
-          done
-
-          echo "Processed ${metadata_count} platform metadata files"
-
-          # Remove metadata files from artifacts (not needed in the release)
-          rm -f artifacts/updater-metadata-*.json
-
-          echo "$latest_json" > artifacts/latest.json
-
-          echo "Generated latest.json:"
-          cat artifacts/latest.json
-
-      - name: Delete existing nightly release
-        run: gh release delete nightly --yes --cleanup-tag || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create nightly release
-        run: |
-          mapfile -t files < <(find artifacts -type f)
-          gh release create nightly \
-            --prerelease \
-            --title "Nightly ($(date -u '+%Y-%m-%d'))" \
-            --notes "$(cat <<NOTES
-          Automated nightly build from [\`${GITHUB_SHA::7}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}).
-
-          > [!WARNING]
-          > This is an unstable pre-release build. Use at your own risk.
-          NOTES
-          )" \
-            "${files[@]}"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
