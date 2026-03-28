@@ -116,6 +116,9 @@ jobs:
     needs: [release-please, nightly-version]
     if: needs.release-please.outputs.release-created != 'true' && github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
+    concurrency:
+      group: publish-nightly
+      cancel-in-progress: true
     permissions:
       contents: write
     steps:
