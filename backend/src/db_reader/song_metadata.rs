@@ -55,19 +55,8 @@ pub fn build_md5_to_sha256_map(path: &Path) -> Result<HashMap<String, String>, r
 
     let mut stmt = conn.prepare("SELECT md5, sha256 FROM song WHERE md5 != '' AND sha256 != ''")?;
 
-    let rows = stmt.query_map([], |row| {
-        let md5: String = row.get(0)?;
-        let sha256: String = row.get(1)?;
-        Ok((md5, sha256))
-    })?;
-
-    let mut map = HashMap::new();
-    for row in rows {
-        let (md5, sha256) = row?;
-        map.insert(md5, sha256);
-    }
-
-    Ok(map)
+    stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect()
 }
 
 #[cfg(test)]

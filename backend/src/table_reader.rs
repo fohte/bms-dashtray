@@ -140,11 +140,8 @@ pub fn build_table_level_map(
             for song in &folder.songs {
                 let sha256 = if !song.sha256.is_empty() {
                     &song.sha256
-                } else if !song.md5.is_empty() {
-                    match md5_to_sha256.get(&song.md5) {
-                        Some(resolved) => resolved,
-                        None => continue,
-                    }
+                } else if let Some(resolved) = md5_to_sha256.get(&song.md5) {
+                    resolved
                 } else {
                     continue;
                 };
