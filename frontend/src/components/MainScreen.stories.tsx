@@ -28,6 +28,7 @@ const sampleRecords: PlayRecord[] = [
     previousClear: 5,
     previousExScore: 1790,
     previousMinBp: 28,
+    tableLevels: ['★24'],
   }),
   makeRecord({
     title: 'Groundbreaking',
@@ -38,6 +39,7 @@ const sampleRecords: PlayRecord[] = [
     previousClear: 6,
     previousExScore: 2100,
     previousMinBp: 8,
+    tableLevels: ['st3', 'sl5'],
   }),
   makeRecord({
     title: 'L9',
@@ -48,6 +50,7 @@ const sampleRecords: PlayRecord[] = [
     previousClear: 4,
     previousExScore: 1500,
     previousMinBp: 40,
+    tableLevels: ['★24'],
   }),
 ]
 
