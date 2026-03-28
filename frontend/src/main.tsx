@@ -1,7 +1,8 @@
+import '@/font-size.css'
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import '@/font-size.css'
 import { App } from '@/App'
 
 const rootElement = document.getElementById('root')

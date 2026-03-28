@@ -53,7 +53,9 @@ export function FilterTabs({ activeFilter, onFilterChange }: FilterTabsProps) {
             ...styles.tab,
             ...(activeFilter === type ? styles.tabActive : styles.tabInactive),
           }}
-          onClick={() => onFilterChange(type)}
+          onClick={() => {
+            onFilterChange(type)
+          }}
           aria-pressed={activeFilter === type}
         >
           {label}

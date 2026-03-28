@@ -6,11 +6,11 @@ import type { AppConfig } from '@/types'
 export interface SettingsScreenProps {
   config: AppConfig
   onBack: () => void
-  onChangeBeatorajaRoot: () => void
-  onToggleBackgroundTransparent: (value: boolean) => void
-  onChangeFontSize: (delta: number) => void
-  onChangeResetTime: (time: string) => void
-  onResetHistory: () => void
+  onChangeBeatorajaRoot: () => void | Promise<void>
+  onToggleBackgroundTransparent: (value: boolean) => void | Promise<void>
+  onChangeFontSize: (delta: number) => void | Promise<void>
+  onChangeResetTime: (time: string) => void | Promise<void>
+  onResetHistory: () => void | Promise<void>
 }
 
 const styles = {
@@ -275,7 +275,9 @@ export function SettingsScreen({
             <button
               type="button"
               style={styles.changeButton}
-              onClick={onChangeBeatorajaRoot}
+              onClick={() => {
+                void onChangeBeatorajaRoot()
+              }}
             >
               ...
             </button>
@@ -299,9 +301,11 @@ export function SettingsScreen({
                   ? '#22C55E'
                   : '#333333',
               }}
-              onClick={() =>
-                onToggleBackgroundTransparent(!config.backgroundTransparent)
-              }
+              onClick={() => {
+                void onToggleBackgroundTransparent(
+                  !config.backgroundTransparent,
+                )
+              }}
               aria-label="Toggle background transparent"
               role="switch"
               aria-checked={config.backgroundTransparent}
@@ -322,7 +326,9 @@ export function SettingsScreen({
               <button
                 type="button"
                 style={styles.fontSizeButton}
-                onClick={() => onChangeFontSize(-1)}
+                onClick={() => {
+                  void onChangeFontSize(-1)
+                }}
                 aria-label="Decrease font size"
               >
                 -
@@ -331,7 +337,9 @@ export function SettingsScreen({
               <button
                 type="button"
                 style={styles.fontSizeButton}
-                onClick={() => onChangeFontSize(1)}
+                onClick={() => {
+                  void onChangeFontSize(1)
+                }}
                 aria-label="Increase font size"
               >
                 +
@@ -348,7 +356,9 @@ export function SettingsScreen({
             <input
               type="time"
               value={config.resetTime}
-              onChange={(e) => onChangeResetTime(e.target.value)}
+              onChange={(e) => {
+                void onChangeResetTime(e.target.value)
+              }}
               style={styles.timeInput}
               aria-label="Reset time"
             />
@@ -357,7 +367,9 @@ export function SettingsScreen({
             <button
               type="button"
               style={styles.resetButton}
-              onClick={() => setShowResetConfirm(true)}
+              onClick={() => {
+                setShowResetConfirm(true)
+              }}
             >
               RESET HISTORY NOW
             </button>
@@ -377,7 +389,9 @@ export function SettingsScreen({
               <button
                 type="button"
                 style={styles.confirmCancel}
-                onClick={() => setShowResetConfirm(false)}
+                onClick={() => {
+                  setShowResetConfirm(false)
+                }}
               >
                 CANCEL
               </button>
@@ -386,7 +400,7 @@ export function SettingsScreen({
                 style={styles.confirmReset}
                 onClick={() => {
                   setShowResetConfirm(false)
-                  onResetHistory()
+                  void onResetHistory()
                 }}
               >
                 RESET

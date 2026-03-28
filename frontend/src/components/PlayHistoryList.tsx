@@ -219,7 +219,7 @@ function LampBar({
       ? ({
           '--lamp-main-color': currentColor,
           '--lamp-alt-color': altColor,
-          animation: `lampFlash ${cycleMs}ms step-end infinite`,
+          animation: `lampFlash ${String(cycleMs)}ms step-end infinite`,
         } as CSSProperties)
       : {}
 
@@ -314,7 +314,8 @@ function PlayHistoryEntry({
             {clearUpdated && (
               <span style={styles.previousClear}>
                 {'< '}
-                {getClearLampName(record.previousClear!)}
+                {record.previousClear != null &&
+                  getClearLampName(record.previousClear)}
               </span>
             )}
           </div>

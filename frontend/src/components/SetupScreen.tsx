@@ -9,8 +9,8 @@ export interface SetupScreenProps {
   error: string | null
   players: string[]
   selectedPlayer: string | null
-  onSelectFolder: () => void
-  onSelectPlayer: (playerName: string) => void
+  onSelectFolder: () => void | Promise<void>
+  onSelectPlayer: (playerName: string) => void | Promise<void>
   onStart: () => void
 }
 
@@ -247,7 +247,9 @@ export function SetupScreen({
         <button
           type="button"
           style={styles.browseButton as CSSProperties}
-          onClick={onSelectFolder}
+          onClick={() => {
+            void onSelectFolder()
+          }}
           disabled={isValidating}
         >
           ...
@@ -268,7 +270,9 @@ export function SetupScreen({
                     ? styles.playerButtonSelected
                     : {}),
                 }}
-                onClick={() => onSelectPlayer(name)}
+                onClick={() => {
+                  void onSelectPlayer(name)
+                }}
                 disabled={isValidating}
               >
                 {name}

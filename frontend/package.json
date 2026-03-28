@@ -1,6 +1,7 @@
 {
   "name": "frontend",
   "private": true,
+  "packageManager": "pnpm@10.30.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -26,9 +27,9 @@
     "recharts": "3.8.0"
   },
   "devDependencies": {
-    "@commitlint/cli": "20.4.3",
+    "@commitlint/cli": "20.4.4",
     "@eslint/eslintrc": "3.3.5",
-    "@fohte/eslint-config": "0.2.0",
+    "@fohte/eslint-config": "0.3.1",
     "@storybook/addon-docs": "10.2.19",
     "@storybook/react-vite": "10.2.19",
     "@testing-library/jest-dom": "6.9.1",
@@ -47,6 +48,6 @@
     "storybook": "10.2.19",
     "typescript": "5.9.3",
     "vite": "8.0.0",
-    "vitest": "4.0.18"
+    "vitest": "4.1.0"
   }
 }

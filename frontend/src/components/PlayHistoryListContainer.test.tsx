@@ -93,10 +93,14 @@ describe('PlayHistoryListContainer', () => {
   it('updates records when scores-updated event is received', async () => {
     let eventCallback: ((payload: ScoresUpdatedPayload) => void) | null = null
     const api = createMockApi({
-      listenScoresUpdated: vi.fn().mockImplementation((callback) => {
-        eventCallback = callback
-        return Promise.resolve(vi.fn())
-      }),
+      listenScoresUpdated: vi
+        .fn()
+        .mockImplementation(
+          (callback: (payload: ScoresUpdatedPayload) => void) => {
+            eventCallback = callback
+            return Promise.resolve(vi.fn())
+          },
+        ),
     })
     render(<PlayHistoryListContainer api={api} />)
 
@@ -108,7 +112,8 @@ describe('PlayHistoryListContainer', () => {
       makeRecord({ title: 'New Song', playedAt: '2026-03-20T17:00:00+09:00' }),
     ]
     act(() => {
-      eventCallback!({
+      if (eventCallback == null) throw new Error('eventCallback is null')
+      eventCallback({
         records: newRecords,
         updatedAt: '2026-03-20T17:00:00+09:00',
       })

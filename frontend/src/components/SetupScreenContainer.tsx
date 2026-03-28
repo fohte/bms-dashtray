@@ -72,7 +72,8 @@ export function SetupScreenContainer({
       const detected = await api.detectPlayers(path)
       if (detected.length === 1) {
         // Single player: auto-select and validate
-        const player = detected[0] as string
+        const player = detected[0]
+        if (player == null) throw new Error('No player detected')
         setSelectedPlayer(player)
         setPlayers(detected)
         await validateWithPlayer(path, player)

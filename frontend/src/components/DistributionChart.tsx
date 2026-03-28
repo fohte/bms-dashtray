@@ -132,7 +132,9 @@ export function DistributionChart({ records }: DistributionChartProps) {
                 style={{
                   ...styles.bar,
                   width:
-                    maxCount > 0 ? `${(item.count / maxCount) * 100}%` : '0%',
+                    maxCount > 0
+                      ? `${String((item.count / maxCount) * 100)}%`
+                      : '0%',
                 }}
                 role="meter"
                 aria-label={item.label}

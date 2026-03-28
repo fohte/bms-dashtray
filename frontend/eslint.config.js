@@ -1,8 +1,17 @@
-import { mainConfig, typescriptConfig } from '@fohte/eslint-config'
+import { config } from '@fohte/eslint-config'
 
-const config = [
-  ...mainConfig,
-  ...typescriptConfig,
+export default config(
+  { typescript: { typeChecked: true } },
+  {
+    files: ['**/*.ts{,x}'],
+    languageOptions: {
+      parserOptions: {
+        projectService: {
+          allowDefaultProject: ['.storybook/*.ts', '.storybook/*.tsx'],
+        },
+      },
+    },
+  },
   {
     rules: {
       'no-restricted-imports': [
@@ -19,6 +28,10 @@ const config = [
       ],
     },
   },
-]
-
-export default config
+  {
+    files: ['.storybook/**'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+)
