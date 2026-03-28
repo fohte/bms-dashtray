@@ -1,32 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { filterRecords, isUpdatedRecord } from '@/components/filterRecords'
-import type { PlayRecord } from '@/types'
-
-function makeRecord(overrides: Partial<PlayRecord> = {}): PlayRecord {
-  return {
-    id: '1',
-    sha256: 'abc',
-    mode: 0,
-    clear: 3,
-    exScore: 1000,
-    minBp: 50,
-    notes: 500,
-    combo: 200,
-    playedAt: '2026-03-20T12:00:00',
-    title: 'Test Song',
-    subtitle: '',
-    artist: 'Test Artist',
-    level: 10,
-    difficulty: 3,
-    tableLevels: [],
-    previousClear: null,
-    previousExScore: null,
-    previousMinBp: null,
-    isRetired: false,
-    ...overrides,
-  }
-}
+import { makeRecord } from '@/test-helpers'
 
 describe('isUpdatedRecord', () => {
   it.each([

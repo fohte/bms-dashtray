@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import { PlayHistoryList } from '@/components/PlayHistoryList'
-import type { PlayRecord } from '@/types'
+import { makeRecord } from '@/test-helpers'
 
 const meta = {
   title: 'Components/PlayHistoryList',
@@ -13,31 +13,6 @@ const meta = {
 
 export default meta
 type Story = StoryObj<typeof meta>
-
-function makeRecord(overrides: Partial<PlayRecord> = {}): PlayRecord {
-  return {
-    id: crypto.randomUUID(),
-    sha256: 'abc123',
-    mode: 0,
-    clear: 5,
-    exScore: 1234,
-    minBp: 15,
-    notes: 800,
-    combo: 500,
-    playedAt: '2026-03-20T15:30:00+09:00',
-    title: 'Example Song',
-    subtitle: '',
-    artist: 'Example Artist',
-    level: 12,
-    difficulty: 1,
-    tableLevels: [],
-    previousClear: 5,
-    previousExScore: 1200,
-    previousMinBp: 18,
-    isRetired: false,
-    ...overrides,
-  }
-}
 
 export const Empty: Story = {
   args: {
