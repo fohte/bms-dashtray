@@ -211,7 +211,13 @@ impl DiffDetector {
         let score_log = read_score_log(db_paths.scorelog, &play.sha256, play.mode, play.date_secs)?;
 
         if let Some(log) = score_log {
-            // Best was updated: the old values represent the previous best
+            // Best was updated: the old values represent the previous best.
+            // beatoraja uses sentinel values for "no previous play":
+            // old_clear=0, old_score=0, old_min_bp=i32::MAX.
+            // Treat this as no previous best.
+            if log.old_clear == 0 && log.old_score == 0 && log.old_min_bp == i32::MAX {
+                return Ok(None);
+            }
             Ok(Some(BestScore {
                 clear: log.old_clear,
                 ex_score: log.old_score,
@@ -610,6 +616,11 @@ mod tests {
     #[case::no_previous_best_for_first_play(
         None,             // no score.db entry
         None,             // no scorelog entry
+        (None, None, None),
+    )]
+    #[case::first_play_with_scorelog_sentinel_values(
+        None,             // no score.db entry
+        Some((0, 0, i32::MAX, 1710500000)),  // scorelog: beatoraja sentinel for "no previous play"
         (None, None, None),
     )]
     fn test_resolve_previous_best(
