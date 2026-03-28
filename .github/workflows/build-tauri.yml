@@ -31,12 +31,16 @@ jobs:
         include:
           - platform: macos-latest
             args: '--target aarch64-apple-darwin'
+            updater-platform: darwin-aarch64
           - platform: macos-latest
             args: '--target x86_64-apple-darwin'
+            updater-platform: darwin-x86_64
           - platform: ubuntu-latest
             args: ''
+            updater-platform: linux-x86_64
           - platform: windows-latest
             args: ''
+            updater-platform: windows-x86_64
     runs-on: ${{ matrix.platform }}
     env:
       SCCACHE_GHA_ENABLED: 'true'
@@ -126,22 +130,80 @@ jobs:
           tagName: ${{ inputs.tag-name }}
           args: ${{ matrix.args }} ${{ inputs.nightly-version && '--features devtools' || '' }}
 
-      - name: Prepare nightly artifact paths
+      - name: Generate updater metadata and prepare artifacts
         if: inputs.upload-artifact
         id: artifact-paths
         shell: bash
         env:
           ARTIFACT_PATHS: ${{ steps.tauri-build.outputs.artifactPaths }}
+          UPDATER_PLATFORM: ${{ matrix.updater-platform }}
         run: |
-          {
-            echo "paths<<EOF"
+          mkdir -p staging
+
+          # Find the updater artifact (.app.tar.gz, .AppImage, or .exe) and its .sig
+          updater_file=""
+          sig_file=""
+          for path in $(echo "$ARTIFACT_PATHS" | jq -r '.[]'); do
+            case "$path" in
+              *.app.tar.gz.sig) sig_file="$path" ;;
+              *.app.tar.gz) updater_file="$path" ;;
+              *.AppImage.sig) sig_file="$path" ;;
+              *.AppImage) updater_file="$path" ;;
+              *-setup.exe.sig) sig_file="$path" ;;
+              *-setup.exe) updater_file="$path" ;;
+            esac
+          done
+
+          if [ -z "$updater_file" ] || [ -z "$sig_file" ]; then
+            echo "::error::Could not find updater artifact or signature for platform ${UPDATER_PLATFORM}"
+            echo "Available artifacts:"
             echo "$ARTIFACT_PATHS" | jq -r '.[]'
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          # For macOS, rename .app.tar.gz to include architecture to avoid collisions
+          filename=$(basename "$updater_file")
+          if [[ "$filename" == *.app.tar.gz ]]; then
+            arch="${UPDATER_PLATFORM#darwin-}"
+            new_filename="${filename%.app.tar.gz}_${arch}.app.tar.gz"
+            cp "$updater_file" "staging/${new_filename}"
+            cp "$sig_file" "staging/${new_filename}.sig"
+            filename="$new_filename"
+          else
+            cp "$updater_file" "staging/$filename"
+            cp "$sig_file" "staging/$(basename "$sig_file")"
+          fi
+
+          signature=$(cat "$sig_file")
+
+          # Generate updater metadata JSON
+          jq -n \
+            --arg platform "$UPDATER_PLATFORM" \
+            --arg filename "$filename" \
+            --arg signature "$signature" \
+            '{platform: $platform, filename: $filename, signature: $signature}' \
+            > "staging/updater-metadata-${UPDATER_PLATFORM}.json"
+
+          echo "Generated metadata:"
+          cat "staging/updater-metadata-${UPDATER_PLATFORM}.json"
+
+          # Also copy non-updater artifacts (dmg, deb, msi, rpm, etc.) for the release
+          for path in $(echo "$ARTIFACT_PATHS" | jq -r '.[]'); do
+            base=$(basename "$path")
+            # Skip files already copied
+            if [ -f "staging/$base" ]; then
+              continue
+            fi
+            # Skip updater artifacts that were renamed (macOS)
+            if [ "$path" = "$updater_file" ] || [ "$path" = "$sig_file" ]; then
+              continue
+            fi
+            cp "$path" "staging/$base"
+          done
 
       - name: Upload nightly artifacts
         if: inputs.upload-artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nightly-${{ matrix.platform }}-${{ strategy.job-index }}
-          path: ${{ steps.artifact-paths.outputs.paths }}
+          name: nightly-${{ matrix.updater-platform }}
+          path: staging/

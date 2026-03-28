@@ -146,65 +146,53 @@ jobs:
       - name: List artifacts
         run: find artifacts -type f | sort
 
-      - name: Generate latest.json for updater
+      - name: Generate latest.json from updater metadata
         env:
           NIGHTLY_VERSION: ${{ needs.nightly-version.outputs.version }}
           REPO: ${{ github.repository }}
         run: |
           base_url="https://github.com/${REPO}/releases/download/nightly"
 
-          # Read signature files
-          read_sig() {
-            local pattern="$1"
-            local sig_file
-            sig_file=$(find artifacts -name "${pattern}" -type f | head -1)
-            if [ -n "$sig_file" ]; then
-              cat "$sig_file"
-            else
-              echo ""
-            fi
-          }
-
-          darwin_aarch64_sig=$(read_sig "*aarch64.app.tar.gz.sig")
-          darwin_x64_sig=$(read_sig "*x64.app.tar.gz.sig")
-          linux_sig=$(read_sig "*.AppImage.tar.gz.sig")
-          windows_nsis_sig=$(read_sig "*x64-setup.nsis.zip.sig")
-
-          # Find artifact filenames (exclude .sig files)
-          find_artifact() {
-            local pattern="$1"
-            find artifacts -name "${pattern}" -not -name "*.sig" -type f | head -1 | xargs -I{} basename {}
-          }
-
-          darwin_aarch64_file=$(find_artifact "*aarch64.app.tar.gz")
-          darwin_x64_file=$(find_artifact "*x64.app.tar.gz")
-          linux_file=$(find_artifact "*.AppImage.tar.gz")
-          windows_nsis_file=$(find_artifact "*x64-setup.nsis.zip")
-
-          # Build latest.json
-          jq -n \
+          # Start with base JSON
+          latest_json=$(jq -n \
             --arg version "$NIGHTLY_VERSION" \
             --arg pub_date "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             --arg notes "Nightly build from ${GITHUB_SHA::7}" \
-            --arg darwin_aarch64_url "${base_url}/${darwin_aarch64_file}" \
-            --arg darwin_aarch64_sig "$darwin_aarch64_sig" \
-            --arg darwin_x64_url "${base_url}/${darwin_x64_file}" \
-            --arg darwin_x64_sig "$darwin_x64_sig" \
-            --arg linux_url "${base_url}/${linux_file}" \
-            --arg linux_sig "$linux_sig" \
-            --arg windows_url "${base_url}/${windows_nsis_file}" \
-            --arg windows_sig "$windows_nsis_sig" \
-            '{
-              version: $version,
-              notes: $notes,
-              pub_date: $pub_date,
-              platforms: {
-                "darwin-aarch64": { url: $darwin_aarch64_url, signature: $darwin_aarch64_sig },
-                "darwin-x86_64": { url: $darwin_x64_url, signature: $darwin_x64_sig },
-                "linux-x86_64": { url: $linux_url, signature: $linux_sig },
-                "windows-x86_64": { url: $windows_url, signature: $windows_sig }
-              }
-            }' > artifacts/latest.json
+            '{version: $version, notes: $notes, pub_date: $pub_date, platforms: {}}')
+
+          # Read each updater metadata file and add to platforms
+          metadata_count=0
+          for meta_file in artifacts/updater-metadata-*.json; do
+            if [ ! -f "$meta_file" ]; then
+              echo "::error::No updater metadata files found"
+              exit 1
+            fi
+
+            platform=$(jq -r '.platform' "$meta_file")
+            filename=$(jq -r '.filename' "$meta_file")
+            signature=$(jq -r '.signature' "$meta_file")
+
+            if [ -z "$platform" ] || [ -z "$filename" ] || [ -z "$signature" ]; then
+              echo "::error::Invalid metadata in $meta_file"
+              cat "$meta_file"
+              exit 1
+            fi
+
+            latest_json=$(echo "$latest_json" | jq \
+              --arg platform "$platform" \
+              --arg url "${base_url}/${filename}" \
+              --arg signature "$signature" \
+              '.platforms[$platform] = {url: $url, signature: $signature}')
+
+            metadata_count=$((metadata_count + 1))
+          done
+
+          echo "Processed ${metadata_count} platform metadata files"
+
+          # Remove metadata files from artifacts (not needed in the release)
+          rm -f artifacts/updater-metadata-*.json
+
+          echo "$latest_json" > artifacts/latest.json
 
           echo "Generated latest.json:"
           cat artifacts/latest.json
