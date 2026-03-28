@@ -139,7 +139,7 @@ jobs:
 
       - name: Upload nightly artifacts
         if: inputs.upload-artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nightly-${{ matrix.platform }}-${{ strategy.job-index }}
           path: ${{ steps.artifact-paths.outputs.paths }}
