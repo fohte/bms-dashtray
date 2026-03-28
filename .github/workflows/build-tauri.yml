@@ -49,6 +49,7 @@ jobs:
     env:
       SCCACHE_GHA_ENABLED: 'true'
       RUSTC_WRAPPER: 'sccache'
+      MISE_AUTO_INSTALL: 'false'
     steps:
       - uses: actions/checkout@v6
 
