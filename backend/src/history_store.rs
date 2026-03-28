@@ -27,6 +27,10 @@ pub struct PlayRecord {
     pub previous_clear: Option<i32>,
     pub previous_ex_score: Option<i32>,
     pub previous_min_bp: Option<i32>,
+    /// Whether the player retired mid-play (gauge reached 0 before finishing).
+    /// Only meaningful when `clear == 1` (Failed).
+    #[serde(default)]
+    pub is_retired: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -292,6 +296,7 @@ mod tests {
             previous_clear: Some(5),
             previous_ex_score: Some(1100),
             previous_min_bp: Some(20),
+            is_retired: false,
         }
     }
 

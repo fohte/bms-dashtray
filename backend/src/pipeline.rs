@@ -393,12 +393,14 @@ mod tests {
                     epg INTEGER NOT NULL,
                     egr INTEGER NOT NULL,
                     egd INTEGER NOT NULL,
+                    ebd INTEGER NOT NULL,
                     epr INTEGER NOT NULL,
                     emr INTEGER NOT NULL,
                     ems INTEGER NOT NULL,
                     lpg INTEGER NOT NULL,
                     lgr INTEGER NOT NULL,
                     lgd INTEGER NOT NULL,
+                    lbd INTEGER NOT NULL,
                     lpr INTEGER NOT NULL,
                     lmr INTEGER NOT NULL,
                     lms INTEGER NOT NULL,
@@ -500,8 +502,8 @@ mod tests {
         });
         conn.execute(
             "INSERT OR REPLACE INTO scoredatalog \
-             (sha256, mode, clear, epg, egr, egd, epr, emr, ems, lpg, lgr, lgd, lpr, lmr, lms, minbp, notes, combo, date) \
-             VALUES (?1, ?2, ?3, 100, 50, 0, 0, 0, 0, 80, 30, 0, 0, 0, 0, 15, 800, 500, ?4)",
+             (sha256, mode, clear, epg, egr, egd, ebd, epr, emr, ems, lpg, lgr, lgd, lbd, lpr, lmr, lms, minbp, notes, combo, date) \
+             VALUES (?1, ?2, ?3, 100, 50, 0, 0, 0, 0, 0, 80, 30, 0, 0, 0, 0, 0, 15, 800, 500, ?4)",
             rusqlite::params![sha256, mode, clear, date],
         )
         .unwrap_or_else(|e| {

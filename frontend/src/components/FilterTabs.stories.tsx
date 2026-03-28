@@ -47,6 +47,7 @@ const sampleRecords: PlayRecord[] = [
     previousClear: 3,
     previousExScore: 1000,
     previousMinBp: 50,
+    isRetired: false,
   },
   {
     id: '2',
@@ -67,6 +68,7 @@ const sampleRecords: PlayRecord[] = [
     previousClear: 3,
     previousExScore: 800,
     previousMinBp: 60,
+    isRetired: false,
   },
   {
     id: '3',
@@ -87,6 +89,7 @@ const sampleRecords: PlayRecord[] = [
     previousClear: null,
     previousExScore: null,
     previousMinBp: null,
+    isRetired: false,
   },
 ]
 
