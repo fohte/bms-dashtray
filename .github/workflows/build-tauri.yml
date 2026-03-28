@@ -5,11 +5,19 @@ on:
         description: 'Tag name for the release (omit for build-only mode)'
         required: false
         type: string
-      upload-artifact:
-        description: 'Upload build artifacts (for nightly builds)'
+      prerelease:
+        description: 'Whether the release is a prerelease'
         required: false
         default: false
         type: boolean
+      release-name:
+        description: 'The name of the release to create'
+        required: false
+        type: string
+      release-body:
+        description: 'The body of the release to create'
+        required: false
+        type: string
       updater-endpoint:
         description: 'Override updater endpoint URL in tauri.conf.json'
         required: false
@@ -124,24 +132,7 @@ jobs:
         with:
           projectPath: ./backend
           tagName: ${{ inputs.tag-name }}
+          releaseName: ${{ inputs.release-name }}
+          releaseBody: ${{ inputs.release-body }}
+          prerelease: ${{ inputs.prerelease }}
           args: ${{ matrix.args }} ${{ inputs.nightly-version && '--features devtools' || '' }}
-
-      - name: Prepare nightly artifact paths
-        if: inputs.upload-artifact
-        id: artifact-paths
-        shell: bash
-        env:
-          ARTIFACT_PATHS: ${{ steps.tauri-build.outputs.artifactPaths }}
-        run: |
-          {
-            echo "paths<<EOF"
-            echo "$ARTIFACT_PATHS" | jq -r '.[]'
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Upload nightly artifacts
-        if: inputs.upload-artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nightly-${{ matrix.platform }}-${{ strategy.job-index }}
-          path: ${{ steps.artifact-paths.outputs.paths }}
