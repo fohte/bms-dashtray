@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use crate::config::AppConfig;
+use crate::db_reader::build_md5_to_sha256_map;
 use crate::diff_detector::{DbPaths, DiffDetector};
 use crate::event_bridge::{EventEmitter, ScoresUpdatedPayload};
 use crate::file_watcher::{self, WatchHandle};
@@ -78,8 +79,21 @@ pub struct PipelineHandle {
 }
 
 /// Reloads table levels from .bmt files and updates the detector.
-fn reload_table_levels(detector: &mut DiffDetector, table_dir: &std::path::Path) {
-    match table_reader::build_table_level_map(table_dir) {
+/// Uses songdata.db to resolve md5-only entries to sha256.
+fn reload_table_levels(
+    detector: &mut DiffDetector,
+    table_dir: &std::path::Path,
+    songdata_db_path: &std::path::Path,
+) {
+    let md5_to_sha256 = match build_md5_to_sha256_map(songdata_db_path) {
+        Ok(map) => map,
+        Err(e) => {
+            eprintln!("failed to build md5-to-sha256 map: {e}");
+            std::collections::HashMap::new()
+        }
+    };
+
+    match table_reader::build_table_level_map(table_dir, &md5_to_sha256) {
         Ok(map) => detector.set_table_levels(map),
         Err(e) => eprintln!("failed to load table levels: {e}"),
     }
@@ -98,7 +112,8 @@ pub fn start_pipeline(
 
     // Load difficulty table levels
     let table_dir = table_reader::table_dir_path(&config.beatoraja_root);
-    reload_table_levels(&mut detector, &table_dir);
+    let songdata_db_path = config.songdata_db_path();
+    reload_table_levels(&mut detector, &table_dir, &songdata_db_path);
 
     // Build restored keys before initial read
     let restored_keys = {
@@ -174,6 +189,7 @@ pub fn start_pipeline(
         let store_for_table = Arc::clone(&store);
         let emitter_for_table = Arc::clone(&emitter);
         let table_dir_clone = table_dir.clone();
+        let songdata_db_path_clone = songdata_db_path.clone();
 
         match file_watcher::start_watching_dir(
             table_dir,
@@ -186,7 +202,7 @@ pub fn start_pipeline(
                         return;
                     }
                 };
-                reload_table_levels(&mut det, &table_dir_clone);
+                reload_table_levels(&mut det, &table_dir_clone, &songdata_db_path_clone);
 
                 // Update table_levels in existing store records
                 let label_map = det.table_level_labels();
