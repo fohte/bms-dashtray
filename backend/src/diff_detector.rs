@@ -219,11 +219,17 @@ impl DiffDetector {
             if log.old_clear == 0 && log.old_score == 0 && log.old_min_bp == i32::MAX {
                 return Ok(None);
             }
-            Ok(Some(BestScore {
+            let previous = BestScore {
                 clear: log.old_clear,
                 ex_score: log.old_score,
                 min_bp: log.old_min_bp,
-            }))
+            };
+            // Seed best_cache so that update_best_cache merges against the
+            // score.db baseline rather than initializing from the current play alone.
+            if !self.best_cache.contains_key(key) {
+                self.best_cache.insert(key.clone(), previous.clone());
+            }
+            Ok(Some(previous))
         } else {
             // No best update: use cached best score, or lazily fetch from score.db
             if let Some(cached) = self.best_cache.get(key) {
@@ -691,6 +697,66 @@ mod tests {
 
         // Cache should reflect the updated best (from the first play: clear=6, ex_score=440, min_bp=15)
         assert_previous_best(&results, Some(6), Some(440), Some(15));
+    }
+
+    /// Regression test: when the scorelog path is taken (best update happened),
+    /// best_cache must be seeded from score.db so that update_best_cache
+    /// does not lose the baseline for metrics the current play did not improve.
+    #[rstest]
+    fn test_best_cache_seeded_on_scorelog_path(test_dbs: TestDbs) {
+        // score.db: clear=5, ex_score=440 (from fixture epg/egr/lpg/lgr), min_bp=10
+        insert_score(&test_dbs.score_conn(), "abc123", 0, 5, 10);
+        insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
+
+        let mut detector = DiffDetector::new();
+
+        // First play: best update happens (clear improved 5→7, but ex_score=200 < 440)
+        // epg=50, egr=50, lpg=25, lgr=0 → ex_score = 50*2+50+25*2+0 = 200
+        insert_scoredatalog_full(
+            &test_dbs.scoredatalog_conn(),
+            "abc123",
+            0,
+            7,
+            50,
+            50,
+            25,
+            0,
+            25,
+            1710500000,
+        );
+        insert_scorelog(
+            &test_dbs.scorelog_conn(),
+            "abc123",
+            0,
+            5,
+            440,
+            10,
+            1710500000,
+        );
+        let _ = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
+            .unwrap();
+
+        // Second play: no best update, cache should have merged baselines correctly
+        // Expected: clear=max(5,7)=7, ex_score=max(440,200)=440, min_bp=min(10,25)=10
+        insert_scoredatalog_full(
+            &test_dbs.scoredatalog_conn(),
+            "abc123",
+            0,
+            3,
+            10,
+            10,
+            10,
+            10,
+            30,
+            1710600000,
+        );
+        let results = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
+            .unwrap();
+
+        // Without the fix, ex_score would be 200 (from the first play only) instead of 440
+        assert_previous_best(&results, Some(7), Some(440), Some(10));
     }
 
     #[rstest]

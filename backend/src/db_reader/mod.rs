@@ -78,24 +78,16 @@ pub fn read_score_data_logs(
     min_date_secs: Option<i64>,
 ) -> Result<Vec<ScoreDataLog>, DBError> {
     let conn = open_readonly_checked(path)?;
-    let (sql, params): (String, Vec<Box<dyn rusqlite::types::ToSql>>) = match min_date_secs {
-        Some(ts) => (
-            "SELECT sha256, mode, clear, epg, egr, egd, ebd, epr, lpg, lgr, lgd, lbd, lpr, \
-             minbp, notes, combo, date \
-             FROM scoredatalog WHERE date >= ?1"
-                .to_string(),
-            vec![Box::new(ts)],
-        ),
-        None => (
-            "SELECT sha256, mode, clear, epg, egr, egd, ebd, epr, lpg, lgr, lgd, lbd, lpr, \
-             minbp, notes, combo, date \
-             FROM scoredatalog"
-                .to_string(),
-            vec![],
-        ),
+    let sql = if min_date_secs.is_some() {
+        "SELECT sha256, mode, clear, epg, egr, egd, ebd, epr, lpg, lgr, lgd, lbd, lpr, \
+         minbp, notes, combo, date \
+         FROM scoredatalog WHERE date >= ?1"
+    } else {
+        "SELECT sha256, mode, clear, epg, egr, egd, ebd, epr, lpg, lgr, lgd, lbd, lpr, \
+         minbp, notes, combo, date \
+         FROM scoredatalog"
     };
-    let mut stmt = conn.prepare(&sql)?;
-    let param_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+    let mut stmt = conn.prepare(sql)?;
 
     // Column indices matching the SELECT clause above.
     const COL_SHA256: usize = 0;
@@ -116,7 +108,7 @@ pub fn read_score_data_logs(
     const COL_COMBO: usize = 15;
     const COL_DATE: usize = 16;
 
-    let rows = stmt.query_map(param_refs.as_slice(), |row| {
+    let rows = stmt.query_map(rusqlite::params_from_iter(min_date_secs.iter()), |row| {
         let mode: i32 = row.get(COL_MODE)?;
         let epg: i32 = row.get(COL_EPG)?;
         let egr: i32 = row.get(COL_EGR)?;

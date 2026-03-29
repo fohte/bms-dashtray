@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use rusqlite::OptionalExtension as _;
+
 use super::open_readonly;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,7 +25,7 @@ pub fn read_best_score(
         "SELECT clear, epg, egr, lpg, lgr, minbp FROM score WHERE sha256 = ?1 AND mode = ?2 LIMIT 1",
     )?;
 
-    let result = stmt.query_row(rusqlite::params![sha256, mode], |row| {
+    stmt.query_row(rusqlite::params![sha256, mode], |row| {
         let clear: i32 = row.get(0)?;
         let epg: i32 = row.get(1)?;
         let egr: i32 = row.get(2)?;
@@ -38,11 +40,6 @@ pub fn read_best_score(
             ex_score,
             min_bp,
         })
-    });
-
-    match result {
-        Ok(score) => Ok(Some(score)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-        Err(e) => Err(e),
-    }
+    })
+    .optional()
 }
