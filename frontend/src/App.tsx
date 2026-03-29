@@ -138,8 +138,8 @@ export const App = () => {
           setResetKey((k) => k + 1)
         })
       }}
+      banner={<UpdateNotification />}
     >
-      <UpdateNotification />
       <PlayHistoryListContainer key={resetKey} api={tauriApi} />
     </MainScreen>
   )

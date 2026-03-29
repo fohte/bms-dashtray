@@ -5,6 +5,7 @@ export interface MainScreenProps {
   backgroundTransparent: boolean
   onOpenSettings: () => void
   onResetHistory: () => void
+  banner?: ReactNode
   children: ReactNode
 }
 
@@ -13,6 +14,7 @@ export const MainScreen = ({
   backgroundTransparent,
   onOpenSettings,
   onResetHistory,
+  banner,
   children,
 }: MainScreenProps) => {
   const bgColor = backgroundTransparent ? 'transparent' : '#000000'
@@ -27,6 +29,7 @@ export const MainScreen = ({
         color: '#ffffff',
       }}
     >
+      {banner}
       <div
         style={{
           display: 'flex',
