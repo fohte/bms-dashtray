@@ -5,32 +5,7 @@ import {
   aggregateLevelDistribution,
   DistributionChart,
 } from '@/components/DistributionChart'
-import type { PlayRecord } from '@/types'
-
-function makeRecord(overrides: Partial<PlayRecord> = {}): PlayRecord {
-  return {
-    id: 'test-id',
-    sha256: 'abc123',
-    mode: 0,
-    clear: 4,
-    exScore: 1200,
-    minBp: 30,
-    notes: 1000,
-    combo: 500,
-    playedAt: '2026-03-20T12:00:00+09:00',
-    title: 'Test Song',
-    subtitle: '',
-    artist: 'Test Artist',
-    level: 10,
-    difficulty: 3,
-    tableLevels: [],
-    previousClear: null,
-    previousExScore: null,
-    previousMinBp: null,
-    isRetired: false,
-    ...overrides,
-  }
-}
+import { makeRecord } from '@/test-helpers'
 
 describe('aggregateLevelDistribution', () => {
   it('returns empty array for no records', () => {
