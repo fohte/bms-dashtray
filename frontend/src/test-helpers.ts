@@ -2,7 +2,7 @@ import type { PlayRecord } from '@/types'
 
 export function makeRecord(overrides: Partial<PlayRecord> = {}): PlayRecord {
   return {
-    id: 'test-id',
+    id: crypto.randomUUID(),
     sha256: 'abc123',
     mode: 0,
     clear: 5,
