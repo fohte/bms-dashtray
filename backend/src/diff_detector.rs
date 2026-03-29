@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::db_reader::{
-    BestScore, ScoreDataLog, read_all_best_scores, read_all_score_data_logs, read_score_log,
+    BestScore, ScoreDataLog, read_best_score, read_score_data_logs, read_score_log,
     read_song_metadata,
 };
 use crate::history_store::PlayRecord;
@@ -21,7 +21,7 @@ type ChartKey = (String, i32);
 pub struct DiffDetector {
     /// Previous snapshot: (sha256, mode) -> ScoreDataLog
     snapshot: HashMap<ChartKey, ScoreDataLog>,
-    /// Best score cache: (sha256, mode) -> BestScore
+    /// Best score cache: (sha256, mode) -> BestScore (lazily populated)
     best_cache: HashMap<ChartKey, BestScore>,
     /// Whether this is the first read (no previous snapshot exists)
     is_first_read: bool,
@@ -71,22 +71,20 @@ impl DiffDetector {
             .collect()
     }
 
-    /// Load initial best score cache from score.db.
-    pub fn load_best_scores(&mut self, score_db_path: &Path) -> Result<(), DiffError> {
-        self.best_cache = read_all_best_scores(score_db_path)?;
-        Ok(())
-    }
-
     /// Called when the DB file changes. Detects new plays by comparing against the previous snapshot.
     ///
     /// On the first read, `restored_keys` should contain (sha256, mode, played_at) tuples
     /// from the HistoryStore so that already-restored records are skipped.
+    ///
+    /// `min_date_secs` limits the scoredatalog query to rows with `date >= min_date_secs`,
+    /// avoiding a full table scan for users with large play histories.
     pub fn on_db_changed(
         &mut self,
         db_paths: &DbPaths<'_>,
         restored_keys: &HashSet<(String, i32, String)>,
+        min_date_secs: Option<i64>,
     ) -> Result<Vec<PlayRecord>, DiffError> {
-        let current_logs = read_all_score_data_logs(db_paths.scoredatalog)?;
+        let current_logs = read_score_data_logs(db_paths.scoredatalog, min_date_secs)?;
 
         let current_map: HashMap<ChartKey, ScoreDataLog> = current_logs
             .into_iter()
@@ -154,7 +152,7 @@ impl DiffDetector {
         for play in plays {
             let key = (play.sha256.clone(), play.mode);
 
-            // Determine previous best: check scorelog for best update, otherwise use cache
+            // Determine previous best: check scorelog for best update, otherwise lazily query score.db
             let previous = self.resolve_previous_best(&key, play, db_paths)?;
 
             // Update best cache if the current play is better
@@ -203,9 +201,9 @@ impl DiffDetector {
 
     /// Resolves the previous best score for a play.
     /// If scorelog has an entry for this timestamp (best update happened),
-    /// use the old values from scorelog. Otherwise, use the cached best.
+    /// use the old values from scorelog. Otherwise, look up score.db (with lazy caching).
     fn resolve_previous_best(
-        &self,
+        &mut self,
         key: &ChartKey,
         play: &ScoreDataLog,
         db_paths: &DbPaths<'_>,
@@ -221,14 +219,27 @@ impl DiffDetector {
             if log.old_clear == 0 && log.old_score == 0 && log.old_min_bp == i32::MAX {
                 return Ok(None);
             }
-            Ok(Some(BestScore {
+            let previous = BestScore {
                 clear: log.old_clear,
                 ex_score: log.old_score,
                 min_bp: log.old_min_bp,
-            }))
+            };
+            // Seed best_cache so that update_best_cache merges against the
+            // score.db baseline rather than initializing from the current play alone.
+            if !self.best_cache.contains_key(key) {
+                self.best_cache.insert(key.clone(), previous.clone());
+            }
+            Ok(Some(previous))
         } else {
-            // No best update: use the cached best score
-            Ok(self.best_cache.get(key).cloned())
+            // No best update: use cached best score, or lazily fetch from score.db
+            if let Some(cached) = self.best_cache.get(key) {
+                return Ok(Some(cached.clone()));
+            }
+            let best = read_best_score(db_paths.score, &play.sha256, play.mode)?;
+            if let Some(ref b) = best {
+                self.best_cache.insert(key.clone(), b.clone());
+            }
+            Ok(best)
         }
     }
 
@@ -523,10 +534,9 @@ mod tests {
         insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
 
         let mut detector = DiffDetector::new();
-        detector.load_best_scores(&test_dbs.paths.score).unwrap();
 
         let results = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
             .unwrap();
 
         assert_eq!(results.len(), 1);
@@ -543,18 +553,17 @@ mod tests {
         insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
 
         let mut detector = DiffDetector::new();
-        detector.load_best_scores(&test_dbs.paths.score).unwrap();
 
         // First read: establishes snapshot
         let _ = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
             .unwrap();
 
         // Update the record (simulate a new play)
         insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710500000);
 
         let results = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
             .unwrap();
 
         assert_eq!(results.len(), 1);
@@ -568,16 +577,15 @@ mod tests {
         insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
 
         let mut detector = DiffDetector::new();
-        detector.load_best_scores(&test_dbs.paths.score).unwrap();
 
         // First read
         let _ = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
             .unwrap();
 
         // Second read with same data: no changes
         let results = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
             .unwrap();
 
         assert!(results.is_empty());
@@ -592,14 +600,13 @@ mod tests {
         insert_songdata(&test_dbs.songdata_conn(), "def456", "Song B", "Artist");
 
         let mut detector = DiffDetector::new();
-        detector.load_best_scores(&test_dbs.paths.score).unwrap();
 
         // abc123 was already restored from history
         let mut restored = HashSet::new();
         restored.insert(("abc123".to_string(), 0, "2024-03-14T07:06:40Z".to_string()));
 
         let results = detector
-            .on_db_changed(&test_dbs.db_paths(), &restored)
+            .on_db_changed(&test_dbs.db_paths(), &restored, None)
             .unwrap();
 
         // Only def456 should be detected as new
@@ -652,10 +659,9 @@ mod tests {
         insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
 
         let mut detector = DiffDetector::new();
-        detector.load_best_scores(&test_dbs.paths.score).unwrap();
 
         let results = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
             .unwrap();
 
         assert_previous_best(&results, expected.0, expected.1, expected.2);
@@ -667,7 +673,6 @@ mod tests {
         insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
 
         let mut detector = DiffDetector::new();
-        detector.load_best_scores(&test_dbs.paths.score).unwrap();
 
         // First play: best update happens
         insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 6, 1710500000);
@@ -681,17 +686,77 @@ mod tests {
             1710500000,
         );
         let _ = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
             .unwrap();
 
         // Second play: no best update, should use the updated cache
         insert_scoredatalog(&test_dbs.scoredatalog_conn(), "abc123", 0, 5, 1710600000);
         let results = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
             .unwrap();
 
         // Cache should reflect the updated best (from the first play: clear=6, ex_score=440, min_bp=15)
         assert_previous_best(&results, Some(6), Some(440), Some(15));
+    }
+
+    /// Regression test: when the scorelog path is taken (best update happened),
+    /// best_cache must be seeded from score.db so that update_best_cache
+    /// does not lose the baseline for metrics the current play did not improve.
+    #[rstest]
+    fn test_best_cache_seeded_on_scorelog_path(test_dbs: TestDbs) {
+        // score.db: clear=5, ex_score=440 (from fixture epg/egr/lpg/lgr), min_bp=10
+        insert_score(&test_dbs.score_conn(), "abc123", 0, 5, 10);
+        insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
+
+        let mut detector = DiffDetector::new();
+
+        // First play: best update happens (clear improved 5→7, but ex_score=200 < 440)
+        // epg=50, egr=50, lpg=25, lgr=0 → ex_score = 50*2+50+25*2+0 = 200
+        insert_scoredatalog_full(
+            &test_dbs.scoredatalog_conn(),
+            "abc123",
+            0,
+            7,
+            50,
+            50,
+            25,
+            0,
+            25,
+            1710500000,
+        );
+        insert_scorelog(
+            &test_dbs.scorelog_conn(),
+            "abc123",
+            0,
+            5,
+            440,
+            10,
+            1710500000,
+        );
+        let _ = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
+            .unwrap();
+
+        // Second play: no best update, cache should have merged baselines correctly
+        // Expected: clear=max(5,7)=7, ex_score=max(440,200)=440, min_bp=min(10,25)=10
+        insert_scoredatalog_full(
+            &test_dbs.scoredatalog_conn(),
+            "abc123",
+            0,
+            3,
+            10,
+            10,
+            10,
+            10,
+            30,
+            1710600000,
+        );
+        let results = detector
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
+            .unwrap();
+
+        // Without the fix, ex_score would be 200 (from the first play only) instead of 440
+        assert_previous_best(&results, Some(7), Some(440), Some(10));
     }
 
     #[rstest]
@@ -717,10 +782,9 @@ mod tests {
         }
 
         let mut detector = DiffDetector::new();
-        detector.load_best_scores(&test_dbs.paths.score).unwrap();
 
         let results = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
             .unwrap();
 
         assert_eq!(results.len(), 1);
@@ -741,7 +805,6 @@ mod tests {
         insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
 
         let mut detector = DiffDetector::new();
-        detector.load_best_scores(&test_dbs.paths.score).unwrap();
 
         // Play with better clear (7) but worse ex_score (200) and worse min_bp (25)
         // epg=50, egr=50, lpg=25, lgr=0 → ex_score = 50*2+50+25*2+0 = 200
@@ -758,7 +821,7 @@ mod tests {
             1710500000,
         );
         let _ = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
             .unwrap();
 
         // Next play: no best update, cache should have merged per-metric bests
@@ -776,7 +839,7 @@ mod tests {
             1710600000,
         );
         let results = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
             .unwrap();
 
         assert_previous_best(&results, Some(7), Some(440), Some(10));
@@ -824,10 +887,9 @@ mod tests {
         insert_songdata(&test_dbs.songdata_conn(), "abc123", "Test Song", "Artist");
 
         let mut detector = DiffDetector::new();
-        detector.load_best_scores(&test_dbs.paths.score).unwrap();
 
         let results = detector
-            .on_db_changed(&test_dbs.db_paths(), &HashSet::new())
+            .on_db_changed(&test_dbs.db_paths(), &HashSet::new(), None)
             .unwrap();
 
         assert_eq!(results.len(), 1);

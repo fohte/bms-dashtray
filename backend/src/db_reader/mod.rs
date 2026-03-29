@@ -2,7 +2,7 @@ mod best_score;
 mod score_log;
 mod song_metadata;
 
-pub use best_score::{BestScore, read_all_best_scores};
+pub use best_score::{BestScore, read_best_score};
 pub use score_log::read_score_log;
 pub use song_metadata::{build_md5_to_sha256_map, read_song_metadata};
 
@@ -69,13 +69,25 @@ fn unix_secs_to_iso8601(secs: i64) -> Result<String, rusqlite::Error> {
 /// unlike 5key/7key where BAD does consume notes.
 const MODE_PMS: i32 = 2;
 
-pub fn read_all_score_data_logs(path: &Path) -> Result<Vec<ScoreDataLog>, DBError> {
+/// Reads score data logs from scoredatalog.db.
+///
+/// When `min_date_secs` is provided, only rows with `date >= min_date_secs` are returned,
+/// which avoids loading the entire table for users with large play histories.
+pub fn read_score_data_logs(
+    path: &Path,
+    min_date_secs: Option<i64>,
+) -> Result<Vec<ScoreDataLog>, DBError> {
     let conn = open_readonly_checked(path)?;
-    let mut stmt = conn.prepare(
+    let sql = if min_date_secs.is_some() {
         "SELECT sha256, mode, clear, epg, egr, egd, ebd, epr, lpg, lgr, lgd, lbd, lpr, \
          minbp, notes, combo, date \
-         FROM scoredatalog",
-    )?;
+         FROM scoredatalog WHERE date >= ?1"
+    } else {
+        "SELECT sha256, mode, clear, epg, egr, egd, ebd, epr, lpg, lgr, lgd, lbd, lpr, \
+         minbp, notes, combo, date \
+         FROM scoredatalog"
+    };
+    let mut stmt = conn.prepare(sql)?;
 
     // Column indices matching the SELECT clause above.
     const COL_SHA256: usize = 0;
@@ -96,7 +108,7 @@ pub fn read_all_score_data_logs(path: &Path) -> Result<Vec<ScoreDataLog>, DBErro
     const COL_COMBO: usize = 15;
     const COL_DATE: usize = 16;
 
-    let rows = stmt.query_map([], |row| {
+    let rows = stmt.query_map(rusqlite::params_from_iter(min_date_secs.iter()), |row| {
         let mode: i32 = row.get(COL_MODE)?;
         let epg: i32 = row.get(COL_EPG)?;
         let egr: i32 = row.get(COL_EGR)?;
@@ -217,14 +229,14 @@ mod tests {
     }
 
     #[rstest]
-    fn test_read_all_score_data_logs_empty(test_db: TestDb) {
-        let results = read_all_score_data_logs(&test_db.scoredatalog_path())
+    fn test_read_score_data_logs_empty(test_db: TestDb) {
+        let results = read_score_data_logs(&test_db.scoredatalog_path(), None)
             .expect("failed to read score data logs");
         assert!(results.is_empty());
     }
 
     #[rstest]
-    fn test_read_all_score_data_logs_single_record(test_db: TestDb) {
+    fn test_read_score_data_logs_single_record(test_db: TestDb) {
         let conn = test_db.conn();
         // epg=100, egr=50, lpg=80, lgr=30 → ex_score = 100*2 + 50 + 80*2 + 30 = 440
         // date = 1710400000 (2024-03-14T07:06:40Z)
@@ -233,7 +245,7 @@ mod tests {
         );
         drop(conn);
 
-        let results = read_all_score_data_logs(&test_db.scoredatalog_path())
+        let results = read_score_data_logs(&test_db.scoredatalog_path(), None)
             .expect("failed to read score data logs");
         assert_eq!(results.len(), 1);
 
@@ -252,7 +264,7 @@ mod tests {
     }
 
     #[rstest]
-    fn test_read_all_score_data_logs_multiple_records(test_db: TestDb) {
+    fn test_read_score_data_logs_multiple_records(test_db: TestDb) {
         let conn = test_db.conn();
         insert_record(
             &conn, "hash_a", 0, 5, 200, 100, 150, 80, 10, 1000, 900, 1710400000,
@@ -262,7 +274,7 @@ mod tests {
         );
         drop(conn);
 
-        let results = read_all_score_data_logs(&test_db.scoredatalog_path())
+        let results = read_score_data_logs(&test_db.scoredatalog_path(), None)
             .expect("failed to read score data logs");
         assert_eq!(results.len(), 2);
 
@@ -284,9 +296,9 @@ mod tests {
     }
 
     #[rstest]
-    fn test_read_all_score_data_logs_file_not_found() {
+    fn test_read_score_data_logs_file_not_found() {
         let path = Path::new("/tmp/nonexistent_scoredatalog.db");
-        let result = read_all_score_data_logs(path);
+        let result = read_score_data_logs(path, None);
         assert!(matches!(&result, Err(DBError::FileNotFound(p)) if p.contains("nonexistent")));
     }
 
@@ -365,7 +377,7 @@ mod tests {
         insert_record_full(&conn, "abc123", mode, 1, &judge, 500, 1710400000);
         drop(conn);
 
-        let results = read_all_score_data_logs(&test_db.scoredatalog_path())
+        let results = read_score_data_logs(&test_db.scoredatalog_path(), None)
             .expect("failed to read score data logs");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].consumed_notes, expected_consumed);
