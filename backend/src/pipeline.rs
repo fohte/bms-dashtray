@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
+use chrono::{NaiveTime, TimeZone as _};
+
 use crate::config::AppConfig;
 use crate::db_reader::build_md5_to_sha256_map;
 use crate::diff_detector::{DbPaths, DiffDetector};
@@ -34,6 +36,24 @@ fn build_restored_keys(
         .collect())
 }
 
+/// Computes the UNIX timestamp (seconds) for the start of the logical "today",
+/// defined as the most recent occurrence of `reset_time` in local time.
+/// Returns `None` if `reset_time` cannot be parsed.
+fn compute_min_date_secs(reset_time: &str) -> Option<i64> {
+    let rt = NaiveTime::parse_from_str(reset_time, "%H:%M").ok()?;
+    let now = chrono::Local::now();
+    let today = now.date_naive();
+    let logical_date = if now.time() < rt {
+        today - chrono::Duration::days(1)
+    } else {
+        today
+    };
+    chrono::Local
+        .from_local_datetime(&logical_date.and_time(rt))
+        .single()
+        .map(|dt| dt.timestamp())
+}
+
 /// Runs one cycle of the pipeline: read DB → detect diff → add to store → emit event.
 fn run_pipeline_cycle(
     detector: &mut DiffDetector,
@@ -49,7 +69,8 @@ fn run_pipeline_cycle(
         songdata: &config.songdata_db_path(),
     };
 
-    let new_records = detector.on_db_changed(&db_paths, restored_keys)?;
+    let min_date_secs = compute_min_date_secs(&config.reset_time);
+    let new_records = detector.on_db_changed(&db_paths, restored_keys, min_date_secs)?;
 
     if new_records.is_empty() {
         return Ok(());
@@ -108,7 +129,6 @@ pub fn start_pipeline(
     emitter: Arc<dyn EventEmitter>,
 ) -> Result<PipelineHandle, PipelineError> {
     let mut detector = DiffDetector::new();
-    detector.load_best_scores(&config.score_db_path())?;
 
     // Load difficulty table levels
     let table_dir = table_reader::table_dir_path(&config.beatoraja_root);
@@ -480,12 +500,7 @@ mod tests {
         let store = HistoryStore::new(history_path, &config.reset_time);
         let emitter = Arc::new(MockEmitter::new());
 
-        let mut detector = DiffDetector::new();
-        detector
-            .load_best_scores(&config.score_db_path())
-            .unwrap_or_else(|e| {
-                panic!("failed to load best scores: {e}");
-            });
+        let detector = DiffDetector::new();
 
         PipelineTestContext {
             _dir: dir,

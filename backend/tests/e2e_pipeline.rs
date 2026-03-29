@@ -288,7 +288,7 @@ fn run_pipeline_cycle(
 
     let empty_keys: HashSet<(String, i32, String)> = HashSet::new();
     let new_records = detector
-        .on_db_changed(&db_paths, &empty_keys)
+        .on_db_changed(&db_paths, &empty_keys, None)
         .unwrap_or_else(|e| {
             panic!("on_db_changed failed: {e}");
         });
@@ -353,12 +353,7 @@ fn e2e_ctx() -> E2EContext {
 fn pipeline_ctx(e2e_ctx: E2EContext) -> PipelineCycleContext {
     let store = HistoryStore::new(e2e_ctx.history_path.clone(), &e2e_ctx.config.reset_time);
     let emitter = MockEmitter::new();
-    let mut detector = DiffDetector::new();
-    detector
-        .load_best_scores(&e2e_ctx.config.score_db_path())
-        .unwrap_or_else(|e| {
-            panic!("load_best_scores failed: {e}");
-        });
+    let detector = DiffDetector::new();
 
     PipelineCycleContext {
         e2e: e2e_ctx,
@@ -704,11 +699,6 @@ fn test_clear_lamp_update_tracking(e2e_ctx: E2EContext) {
     let mut store = HistoryStore::new(e2e_ctx.history_path.clone(), &e2e_ctx.config.reset_time);
     let emitter = MockEmitter::new();
     let mut detector = DiffDetector::new();
-    detector
-        .load_best_scores(&e2e_ctx.config.score_db_path())
-        .unwrap_or_else(|e| {
-            panic!("load_best_scores failed: {e}");
-        });
 
     run_pipeline_cycle(&mut detector, &mut store, &emitter, &e2e_ctx.config);
 
