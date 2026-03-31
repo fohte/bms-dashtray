@@ -38,4 +38,29 @@ describe('PlayHistoryPanel', () => {
     expect(meters).toHaveLength(1)
     expect(meters[0]).toHaveAttribute('aria-label', '★2')
   })
+
+  it('shows total plays count when filter is "all"', () => {
+    const allRecords = [makeRecord(), makeRecord(), makeRecord()]
+
+    renderPanel({
+      records: allRecords,
+      filteredRecords: allRecords,
+      activeFilter: 'all',
+    })
+
+    expect(screen.getByText('3 plays')).toBeInTheDocument()
+  })
+
+  it('shows filtered updates count when filter is "updated"', () => {
+    const allRecords = [makeRecord(), makeRecord(), makeRecord()]
+    const filtered = [makeRecord()]
+
+    renderPanel({
+      records: allRecords,
+      filteredRecords: filtered,
+      activeFilter: 'updated',
+    })
+
+    expect(screen.getByText('1 update')).toBeInTheDocument()
+  })
 })
