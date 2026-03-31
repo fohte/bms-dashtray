@@ -4,6 +4,15 @@ import { describe, expect, it } from 'vitest'
 import { PlayHistoryList } from '@/components/PlayHistoryList'
 import { makeRecord } from '@/test-helpers'
 
+function expectFlashAnimation(el: HTMLElement, expectedMs: string) {
+  expect(el.style.animation).toContain('lampFlash')
+  expect(el.style.animation).toContain(expectedMs)
+}
+
+function expectNoFlashAnimation(el: HTMLElement) {
+  expect(el.style.animation).toBe('')
+}
+
 describe('PlayHistoryList lamp bar', () => {
   describe('flash animation on split lamp bar', () => {
     it('applies flash animation to the previous lamp when previousClear has an alt color', () => {
@@ -16,8 +25,7 @@ describe('PlayHistoryList lamp bar', () => {
       render(<PlayHistoryList records={[record]} />)
 
       const previousLamp = screen.getByTestId('lamp-bar-previous')
-      expect(previousLamp.style.animation).toContain('lampFlash')
-      expect(previousLamp.style.animation).toContain('50ms')
+      expectFlashAnimation(previousLamp, '50ms')
     })
 
     it('does not apply flash animation to the current lamp when it has no alt color', () => {
@@ -30,7 +38,7 @@ describe('PlayHistoryList lamp bar', () => {
       render(<PlayHistoryList records={[record]} />)
 
       const currentLamp = screen.getByTestId('lamp-bar-current')
-      expect(currentLamp.style.animation).toBe('')
+      expectNoFlashAnimation(currentLamp)
     })
 
     it('applies flash animation to both halves when both have alt colors', () => {
@@ -44,10 +52,8 @@ describe('PlayHistoryList lamp bar', () => {
 
       const previousLamp = screen.getByTestId('lamp-bar-previous')
       const currentLamp = screen.getByTestId('lamp-bar-current')
-      expect(previousLamp.style.animation).toContain('lampFlash')
-      expect(previousLamp.style.animation).toContain('50ms')
-      expect(currentLamp.style.animation).toContain('lampFlash')
-      expect(currentLamp.style.animation).toContain('100ms')
+      expectFlashAnimation(previousLamp, '50ms')
+      expectFlashAnimation(currentLamp, '100ms')
     })
 
     it('does not apply flash animation to either half when isRetired is true', () => {
@@ -62,47 +68,46 @@ describe('PlayHistoryList lamp bar', () => {
 
       const previousLamp = screen.getByTestId('lamp-bar-previous')
       const currentLamp = screen.getByTestId('lamp-bar-current')
-      expect(previousLamp.style.animation).toBe('')
-      expect(currentLamp.style.animation).toBe('')
+      expectNoFlashAnimation(previousLamp)
+      expectNoFlashAnimation(currentLamp)
     })
   })
 
   describe('flash animation on single lamp bar', () => {
-    it('applies flash animation when clear has an alt color', () => {
-      const record = makeRecord({
+    it.each([
+      {
+        name: 'applies flash when clear has an alt color',
         clear: 1,
-        previousClear: null,
         isRetired: false,
-      })
-      render(<PlayHistoryList records={[record]} />)
-
-      const lampBar = screen.getByTestId('lamp-bar')
-      expect(lampBar.style.animation).toContain('lampFlash')
-      expect(lampBar.style.animation).toContain('50ms')
-    })
-
-    it('does not apply flash animation when clear has no alt color', () => {
-      const record = makeRecord({
+        expectFlash: true,
+        expectedMs: '50ms',
+      },
+      {
+        name: 'no flash when clear has no alt color',
         clear: 6,
-        previousClear: null,
         isRetired: false,
-      })
-      render(<PlayHistoryList records={[record]} />)
-
-      const lampBar = screen.getByTestId('lamp-bar')
-      expect(lampBar.style.animation).toBe('')
-    })
-
-    it('does not apply flash animation when isRetired is true', () => {
-      const record = makeRecord({
+        expectFlash: false,
+      },
+      {
+        name: 'no flash when isRetired is true',
         clear: 1,
-        previousClear: null,
         isRetired: true,
+        expectFlash: false,
+      },
+    ])('$name', ({ clear, isRetired, expectFlash, expectedMs }) => {
+      const record = makeRecord({
+        clear,
+        previousClear: null,
+        isRetired,
       })
       render(<PlayHistoryList records={[record]} />)
 
       const lampBar = screen.getByTestId('lamp-bar')
-      expect(lampBar.style.animation).toBe('')
+      if (expectFlash && expectedMs != null) {
+        expectFlashAnimation(lampBar, expectedMs)
+      } else {
+        expectNoFlashAnimation(lampBar)
+      }
     })
   })
 })
