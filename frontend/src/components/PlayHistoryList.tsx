@@ -215,7 +215,7 @@ function buildFlashStyle(lampClear: number, lampColor: string): CSSProperties {
   return {
     '--lamp-main-color': lampColor,
     '--lamp-alt-color': altColor,
-    animation: `lampFlash ${String(cycleMs)}ms step-end infinite`,
+    animation: `lampFlash ${cycleMs}ms step-end infinite`,
   } as CSSProperties
 }
 
@@ -237,7 +237,9 @@ function LampBar({
 
   if (previousColor != null && previousColor !== currentColor) {
     const previousFlashStyle =
-      previousClear != null ? buildFlashStyle(previousClear, previousColor) : {}
+      !isRetired && previousClear != null
+        ? buildFlashStyle(previousClear, previousColor)
+        : {}
     return (
       <div
         style={{
@@ -302,7 +304,7 @@ function PlayHistoryEntry({
     <div style={{ ...styles.entry, backgroundColor: bgColor }}>
       <LampBar
         clear={record.clear}
-        previousClear={clearUpdated ? (record.previousClear ?? null) : null}
+        previousClear={clearUpdated ? record.previousClear : null}
         isRetired={record.isRetired}
         currentColor={lampColor}
         previousColor={clearUpdated ? previousLampColor : null}
