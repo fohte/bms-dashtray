@@ -58,7 +58,7 @@ export function PlayHistoryPanel({
       <div style={{ padding: '0 8px' }}>
         <PlayHistoryList records={filteredRecords} />
       </div>
-      <DistributionChart records={records} />
+      <DistributionChart records={filteredRecords} />
     </div>
   )
 }
