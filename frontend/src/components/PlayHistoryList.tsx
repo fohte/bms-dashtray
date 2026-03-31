@@ -208,30 +208,36 @@ const styles = {
   },
 } satisfies Record<string, CSSProperties>
 
+function buildFlashStyle(lampClear: number, lampColor: string): CSSProperties {
+  const altColor = CLEAR_LAMP_ALT_COLORS[lampClear]
+  if (altColor == null) return {}
+  const cycleMs = lampClear === 1 ? 50 : 100
+  return {
+    '--lamp-main-color': lampColor,
+    '--lamp-alt-color': altColor,
+    animation: `lampFlash ${String(cycleMs)}ms step-end infinite`,
+  } as CSSProperties
+}
+
 function LampBar({
   clear,
+  previousClear,
   isRetired,
   currentColor,
   previousColor,
 }: {
   clear: number
+  previousClear: number | null
   isRetired: boolean
   currentColor: string
   previousColor: string | null
 }) {
   // No flash animation for retired plays — the dimmer color is enough distinction.
-  const altColor = isRetired ? undefined : CLEAR_LAMP_ALT_COLORS[clear]
-  const cycleMs = clear === 1 ? 50 : 100
-  const flashStyle =
-    altColor != null
-      ? ({
-          '--lamp-main-color': currentColor,
-          '--lamp-alt-color': altColor,
-          animation: `lampFlash ${String(cycleMs)}ms step-end infinite`,
-        } as CSSProperties)
-      : {}
+  const flashStyle = isRetired ? {} : buildFlashStyle(clear, currentColor)
 
   if (previousColor != null && previousColor !== currentColor) {
+    const previousFlashStyle =
+      previousClear != null ? buildFlashStyle(previousClear, previousColor) : {}
     return (
       <div
         style={{
@@ -246,6 +252,7 @@ function LampBar({
             flex: 1,
             borderRadius: '2px 2px 0 0',
             backgroundColor: previousColor,
+            ...previousFlashStyle,
           }}
         />
         <div
@@ -295,6 +302,7 @@ function PlayHistoryEntry({
     <div style={{ ...styles.entry, backgroundColor: bgColor }}>
       <LampBar
         clear={record.clear}
+        previousClear={clearUpdated ? (record.previousClear ?? null) : null}
         isRetired={record.isRetired}
         currentColor={lampColor}
         previousColor={clearUpdated ? previousLampColor : null}
