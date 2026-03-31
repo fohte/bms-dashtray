@@ -242,6 +242,7 @@ function LampBar({
         : {}
     return (
       <div
+        data-testid="lamp-bar"
         style={{
           ...styles.lampBar,
           display: 'flex',
@@ -250,6 +251,7 @@ function LampBar({
         }}
       >
         <div
+          data-testid="lamp-bar-previous"
           style={{
             flex: 1,
             borderRadius: '2px 2px 0 0',
@@ -258,6 +260,7 @@ function LampBar({
           }}
         />
         <div
+          data-testid="lamp-bar-current"
           style={{
             flex: 1,
             borderRadius: '0 0 2px 2px',
@@ -271,6 +274,7 @@ function LampBar({
 
   return (
     <div
+      data-testid="lamp-bar"
       style={{
         ...styles.lampBar,
         backgroundColor: currentColor,
