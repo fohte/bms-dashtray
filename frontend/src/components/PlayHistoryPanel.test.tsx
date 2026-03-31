@@ -6,6 +6,7 @@ import {
   type PlayHistoryPanelProps,
 } from '@/components/PlayHistoryPanel'
 import { makeRecord } from '@/test-helpers'
+import type { PlayRecord } from '@/types'
 
 const defaultProps: PlayHistoryPanelProps = {
   records: [],
@@ -39,28 +40,28 @@ describe('PlayHistoryPanel', () => {
     expect(meters[0]).toHaveAttribute('aria-label', '★2')
   })
 
-  it('shows total plays count when filter is "all"', () => {
+  it.each([
+    {
+      name: 'shows total plays count when filter is "all"',
+      activeFilter: 'all' as const,
+      filteredRecords: undefined as PlayRecord[] | undefined,
+      expected: '3 plays',
+    },
+    {
+      name: 'shows filtered updates count when filter is "updated"',
+      activeFilter: 'updated' as const,
+      filteredRecords: [makeRecord()],
+      expected: '1 update',
+    },
+  ])('$name', ({ activeFilter, filteredRecords, expected }) => {
     const allRecords = [makeRecord(), makeRecord(), makeRecord()]
 
     renderPanel({
       records: allRecords,
-      filteredRecords: allRecords,
-      activeFilter: 'all',
+      filteredRecords: filteredRecords ?? allRecords,
+      activeFilter,
     })
 
-    expect(screen.getByText('3 plays')).toBeInTheDocument()
-  })
-
-  it('shows filtered updates count when filter is "updated"', () => {
-    const allRecords = [makeRecord(), makeRecord(), makeRecord()]
-    const filtered = [makeRecord()]
-
-    renderPanel({
-      records: allRecords,
-      filteredRecords: filtered,
-      activeFilter: 'updated',
-    })
-
-    expect(screen.getByText('1 update')).toBeInTheDocument()
+    expect(screen.getByText(expected)).toBeInTheDocument()
   })
 })
