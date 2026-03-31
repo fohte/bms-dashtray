@@ -15,62 +15,57 @@ function expectNoFlashAnimation(el: HTMLElement) {
 
 describe('PlayHistoryList lamp bar', () => {
   describe('flash animation on split lamp bar', () => {
-    it('applies flash animation to the previous lamp when previousClear has an alt color', () => {
-      // Failed(1) -> Hard(6): Failed has alt color, Hard does not
-      const record = makeRecord({
+    it.each([
+      {
+        name: 'previous flashes when previousClear has alt color, current does not',
         clear: 6,
         previousClear: 1,
         isRetired: false,
-      })
-      render(<PlayHistoryList records={[record]} />)
-
-      const previousLamp = screen.getByTestId('lamp-bar-previous')
-      expectFlashAnimation(previousLamp, '50ms')
-    })
-
-    it('does not apply flash animation to the current lamp when it has no alt color', () => {
-      // Failed(1) -> Hard(6): Hard has no alt color
-      const record = makeRecord({
-        clear: 6,
-        previousClear: 1,
-        isRetired: false,
-      })
-      render(<PlayHistoryList records={[record]} />)
-
-      const currentLamp = screen.getByTestId('lamp-bar-current')
-      expectNoFlashAnimation(currentLamp)
-    })
-
-    it('applies flash animation to both halves when both have alt colors', () => {
-      // Failed(1) -> ExHard(7): both have alt colors
-      const record = makeRecord({
+        expectedPreviousMs: '50ms',
+        expectedCurrentMs: null,
+      },
+      {
+        name: 'both halves flash when both have alt colors',
         clear: 7,
         previousClear: 1,
         isRetired: false,
-      })
-      render(<PlayHistoryList records={[record]} />)
-
-      const previousLamp = screen.getByTestId('lamp-bar-previous')
-      const currentLamp = screen.getByTestId('lamp-bar-current')
-      expectFlashAnimation(previousLamp, '50ms')
-      expectFlashAnimation(currentLamp, '100ms')
-    })
-
-    it('does not apply flash animation to either half when isRetired is true', () => {
-      // ExHard(7) with previousClear Failed(1), retired — both have alt colors
-      // normally, but isRetired should suppress all flash animations.
-      const record = makeRecord({
+        expectedPreviousMs: '50ms',
+        expectedCurrentMs: '100ms',
+      },
+      {
+        name: 'isRetired suppresses all flash animations',
         clear: 7,
         previousClear: 1,
         isRetired: true,
-      })
-      render(<PlayHistoryList records={[record]} />)
+        expectedPreviousMs: null,
+        expectedCurrentMs: null,
+      },
+    ])(
+      '$name',
+      ({
+        clear,
+        previousClear,
+        isRetired,
+        expectedPreviousMs,
+        expectedCurrentMs,
+      }) => {
+        const record = makeRecord({ clear, previousClear, isRetired })
+        render(<PlayHistoryList records={[record]} />)
 
-      const previousLamp = screen.getByTestId('lamp-bar-previous')
-      const currentLamp = screen.getByTestId('lamp-bar-current')
-      expectNoFlashAnimation(previousLamp)
-      expectNoFlashAnimation(currentLamp)
-    })
+        const previousLamp = screen.getByTestId('lamp-bar-previous')
+        const currentLamp = screen.getByTestId('lamp-bar-current')
+        if (expectedPreviousMs != null) {
+          expectFlashAnimation(previousLamp, expectedPreviousMs)
+        } else {
+          expectNoFlashAnimation(previousLamp)
+        }
+        if (expectedCurrentMs != null) {
+          expectFlashAnimation(currentLamp, expectedCurrentMs)
+        } else {
+          expectNoFlashAnimation(currentLamp)
+        }
+      },
+    )
   })
 
   describe('flash animation on single lamp bar', () => {
