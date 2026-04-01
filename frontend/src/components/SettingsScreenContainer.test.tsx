@@ -6,6 +6,18 @@ import { SettingsScreenContainer } from '@/components/SettingsScreenContainer'
 import type { TauriApi } from '@/tauri-api'
 import type { AppConfig } from '@/types'
 
+vi.mock('@tauri-apps/api/app', () => ({
+  getVersion: vi.fn().mockResolvedValue('0.1.2'),
+}))
+
+vi.mock('@tauri-apps/plugin-updater', () => ({
+  check: vi.fn().mockResolvedValue(null),
+}))
+
+vi.mock('@tauri-apps/plugin-process', () => ({
+  relaunch: vi.fn().mockResolvedValue(undefined),
+}))
+
 const defaultConfig: AppConfig = {
   beatorajaRoot: '/path/to/beatoraja',
   playerName: 'default',

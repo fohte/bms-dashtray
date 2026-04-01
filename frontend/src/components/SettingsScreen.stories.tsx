@@ -24,12 +24,16 @@ const defaultConfig = {
 const noop = () => {}
 
 const baseArgs = {
+  appVersion: '0.1.2',
+  updateCheckState: { status: 'idle' as const },
   onBack: noop,
   onChangeBeatorajaRoot: noop,
   onToggleBackgroundTransparent: noop,
   onChangeFontSize: noop,
   onChangeResetTime: noop,
   onResetHistory: noop,
+  onCheckForUpdates: noop,
+  onInstallUpdate: noop,
 }
 
 export const Default: Story = {
@@ -57,5 +61,45 @@ export const CustomResetTime: Story = {
   args: {
     ...baseArgs,
     config: { ...defaultConfig, resetTime: '04:00' },
+  },
+}
+
+export const UpdateAvailable: Story = {
+  args: {
+    ...baseArgs,
+    config: defaultConfig,
+    updateCheckState: { status: 'available', version: '0.2.0' },
+  },
+}
+
+export const UpdateChecking: Story = {
+  args: {
+    ...baseArgs,
+    config: defaultConfig,
+    updateCheckState: { status: 'checking' },
+  },
+}
+
+export const UpdateUpToDate: Story = {
+  args: {
+    ...baseArgs,
+    config: defaultConfig,
+    updateCheckState: { status: 'up-to-date' },
+  },
+}
+
+export const UpdateDownloading: Story = {
+  args: {
+    ...baseArgs,
+    config: defaultConfig,
+    updateCheckState: { status: 'downloading', progress: 45 },
+  },
+}
+
+export const UpdateError: Story = {
+  args: {
+    ...baseArgs,
+    config: defaultConfig,
+    updateCheckState: { status: 'error', message: 'Network error' },
   },
 }

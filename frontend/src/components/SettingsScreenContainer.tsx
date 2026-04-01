@@ -1,6 +1,12 @@
-import { useCallback, useState } from 'react'
+import { getVersion } from '@tauri-apps/api/app'
+import { relaunch } from '@tauri-apps/plugin-process'
+import { check, type Update } from '@tauri-apps/plugin-updater'
+import { useCallback, useEffect, useState } from 'react'
 
-import { SettingsScreen } from '@/components/SettingsScreen'
+import {
+  SettingsScreen,
+  type UpdateCheckState,
+} from '@/components/SettingsScreen'
 import type { TauriApi } from '@/tauri-api'
 import type { AppConfig } from '@/types'
 
@@ -18,6 +24,81 @@ export function SettingsScreenContainer({
   onConfigChanged,
 }: SettingsScreenContainerProps) {
   const [currentConfig, setCurrentConfig] = useState<AppConfig>(config)
+  const [appVersion, setAppVersion] = useState<string | null>(null)
+  const [updateCheckState, setUpdateCheckState] = useState<UpdateCheckState>({
+    status: 'idle',
+  })
+  const [pendingUpdate, setPendingUpdate] = useState<Update | null>(null)
+
+  useEffect(() => {
+    void getVersion().then(setAppVersion)
+  }, [])
+
+  const handleCheckForUpdates = useCallback(() => {
+    setUpdateCheckState({ status: 'checking' })
+
+    const doCheck = async () => {
+      try {
+        const update = await check()
+        if (update) {
+          setPendingUpdate(update)
+          setUpdateCheckState({
+            status: 'available',
+            version: update.version,
+          })
+        } else {
+          setUpdateCheckState({ status: 'up-to-date' })
+        }
+      } catch (e) {
+        setUpdateCheckState({
+          status: 'error',
+          message: e instanceof Error ? e.message : String(e),
+        })
+      }
+    }
+
+    void doCheck()
+  }, [])
+
+  const handleInstallUpdate = useCallback(() => {
+    if (pendingUpdate == null) return
+
+    const doUpdate = async () => {
+      try {
+        let totalLength = 0
+        let downloadedLength = 0
+
+        setUpdateCheckState({ status: 'downloading', progress: 0 })
+
+        await pendingUpdate.downloadAndInstall((progress) => {
+          if (
+            progress.event === 'Started' &&
+            progress.data.contentLength != null &&
+            progress.data.contentLength > 0
+          ) {
+            totalLength = progress.data.contentLength
+          } else if (progress.event === 'Progress') {
+            downloadedLength += progress.data.chunkLength
+            if (totalLength > 0) {
+              setUpdateCheckState({
+                status: 'downloading',
+                progress: Math.round((downloadedLength / totalLength) * 100),
+              })
+            }
+          }
+        })
+
+        await relaunch()
+      } catch (e) {
+        setUpdateCheckState({
+          status: 'error',
+          message: e instanceof Error ? e.message : String(e),
+        })
+      }
+    }
+
+    void doUpdate()
+  }, [pendingUpdate])
 
   const updateConfig = useCallback(
     (patch: Partial<AppConfig>) => {
@@ -80,12 +161,16 @@ export function SettingsScreenContainer({
   return (
     <SettingsScreen
       config={currentConfig}
+      appVersion={appVersion}
+      updateCheckState={updateCheckState}
       onBack={onBack}
       onChangeBeatorajaRoot={handleChangeBeatorajaRoot}
       onToggleBackgroundTransparent={handleToggleBackgroundTransparent}
       onChangeFontSize={handleChangeFontSize}
       onChangeResetTime={handleChangeResetTime}
       onResetHistory={handleResetHistory}
+      onCheckForUpdates={handleCheckForUpdates}
+      onInstallUpdate={handleInstallUpdate}
     />
   )
 }
