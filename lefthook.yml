@@ -7,6 +7,10 @@ remotes:
 
 pre-commit:
   commands:
+    eslint-frontend:
+      glob: '*.{js,ts,jsx,tsx,mjs,cjs}'
+      root: 'frontend/'
+      run: pnpm exec eslint {staged_files}
     ast-grep:
       glob: '*.rs'
       run: ast-grep scan {staged_files}
