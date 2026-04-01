@@ -1,6 +1,13 @@
 import { relaunch } from '@tauri-apps/plugin-process'
 import { check, type Update } from '@tauri-apps/plugin-updater'
-import { useCallback, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 
 export type UpdateCheckState =
   | { status: 'idle' }
@@ -10,16 +17,40 @@ export type UpdateCheckState =
   | { status: 'downloading'; progress: number }
   | { status: 'error'; message: string }
 
-export function useUpdateChecker() {
+interface UpdateCheckerValue {
+  state: UpdateCheckState
+  checkForUpdates: () => void
+  installUpdate: () => void
+  dismiss: () => void
+}
+
+const UpdateCheckerContext = createContext<UpdateCheckerValue | null>(null)
+
+export const UpdateCheckerProvider = UpdateCheckerContext.Provider
+
+export function useUpdateCheckerValue(): UpdateCheckerValue {
   const [state, setState] = useState<UpdateCheckState>({ status: 'idle' })
   const [pendingUpdate, setPendingUpdate] = useState<Update | null>(null)
+  const isMountedRef = useRef(true)
+  const isProcessingRef = useRef(false)
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   const checkForUpdates = useCallback(() => {
+    if (isProcessingRef.current) return
+    isProcessingRef.current = true
+
+    setPendingUpdate(null)
     setState({ status: 'checking' })
 
     const doCheck = async () => {
       try {
         const update = await check()
+        if (!isMountedRef.current) return
         if (update) {
           setPendingUpdate(update)
           setState({ status: 'available', version: update.version })
@@ -27,10 +58,14 @@ export function useUpdateChecker() {
           setState({ status: 'up-to-date' })
         }
       } catch (e) {
-        setState({
-          status: 'error',
-          message: e instanceof Error ? e.message : String(e),
-        })
+        if (isMountedRef.current) {
+          setState({
+            status: 'error',
+            message: e instanceof Error ? e.message : String(e),
+          })
+        }
+      } finally {
+        isProcessingRef.current = false
       }
     }
 
@@ -38,7 +73,8 @@ export function useUpdateChecker() {
   }, [])
 
   const installUpdate = useCallback(() => {
-    if (pendingUpdate == null) return
+    if (pendingUpdate == null || isProcessingRef.current) return
+    isProcessingRef.current = true
 
     const doUpdate = async () => {
       try {
@@ -48,6 +84,7 @@ export function useUpdateChecker() {
         setState({ status: 'downloading', progress: 0 })
 
         await pendingUpdate.downloadAndInstall((progress) => {
+          if (!isMountedRef.current) return
           if (
             progress.event === 'Started' &&
             progress.data.contentLength != null &&
@@ -65,12 +102,18 @@ export function useUpdateChecker() {
           }
         })
 
-        await relaunch()
+        if (isMountedRef.current) {
+          await relaunch()
+        }
       } catch (e) {
-        setState({
-          status: 'error',
-          message: e instanceof Error ? e.message : String(e),
-        })
+        if (isMountedRef.current) {
+          setState({
+            status: 'error',
+            message: e instanceof Error ? e.message : String(e),
+          })
+        }
+      } finally {
+        isProcessingRef.current = false
       }
     }
 
@@ -78,8 +121,19 @@ export function useUpdateChecker() {
   }, [pendingUpdate])
 
   const dismiss = useCallback(() => {
+    setPendingUpdate(null)
     setState({ status: 'idle' })
   }, [])
 
   return { state, checkForUpdates, installUpdate, dismiss }
+}
+
+export function useUpdateChecker(): UpdateCheckerValue {
+  const value = useContext(UpdateCheckerContext)
+  if (value == null) {
+    throw new Error(
+      'useUpdateChecker must be used within an UpdateCheckerProvider',
+    )
+  }
+  return value
 }

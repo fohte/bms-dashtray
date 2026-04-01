@@ -1,8 +1,13 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { SettingsScreenContainer } from '@/components/SettingsScreenContainer'
+import {
+  UpdateCheckerProvider,
+  useUpdateCheckerValue,
+} from '@/hooks/useUpdateChecker'
 import type { TauriApi } from '@/tauri-api'
 import type { AppConfig } from '@/types'
 
@@ -40,6 +45,11 @@ function createMockApi(overrides: Partial<TauriApi> = {}): TauriApi {
   }
 }
 
+function TestWrapper({ children }: { children: ReactNode }) {
+  const value = useUpdateCheckerValue()
+  return <UpdateCheckerProvider value={value}>{children}</UpdateCheckerProvider>
+}
+
 describe('SettingsScreenContainer', () => {
   it('renders settings with config values', () => {
     const api = createMockApi()
@@ -50,6 +60,7 @@ describe('SettingsScreenContainer', () => {
         onBack={vi.fn()}
         onConfigChanged={vi.fn()}
       />,
+      { wrapper: TestWrapper },
     )
 
     expect(screen.getByText('/path/to/beatoraja')).toBeInTheDocument()
@@ -67,6 +78,7 @@ describe('SettingsScreenContainer', () => {
         onBack={onBack}
         onConfigChanged={vi.fn()}
       />,
+      { wrapper: TestWrapper },
     )
 
     await userEvent.click(screen.getByText('< BACK'))
@@ -82,6 +94,7 @@ describe('SettingsScreenContainer', () => {
         onBack={vi.fn()}
         onConfigChanged={vi.fn()}
       />,
+      { wrapper: TestWrapper },
     )
 
     await userEvent.click(
@@ -104,6 +117,7 @@ describe('SettingsScreenContainer', () => {
         onBack={vi.fn()}
         onConfigChanged={vi.fn()}
       />,
+      { wrapper: TestWrapper },
     )
 
     await userEvent.click(
@@ -125,6 +139,7 @@ describe('SettingsScreenContainer', () => {
         onBack={vi.fn()}
         onConfigChanged={vi.fn()}
       />,
+      { wrapper: TestWrapper },
     )
 
     await userEvent.click(
@@ -146,6 +161,7 @@ describe('SettingsScreenContainer', () => {
         onBack={vi.fn()}
         onConfigChanged={vi.fn()}
       />,
+      { wrapper: TestWrapper },
     )
 
     await userEvent.click(
@@ -165,6 +181,7 @@ describe('SettingsScreenContainer', () => {
         onBack={vi.fn()}
         onConfigChanged={vi.fn()}
       />,
+      { wrapper: TestWrapper },
     )
 
     await userEvent.click(screen.getByText('RESET HISTORY NOW'))
@@ -186,6 +203,7 @@ describe('SettingsScreenContainer', () => {
         onBack={vi.fn()}
         onConfigChanged={vi.fn()}
       />,
+      { wrapper: TestWrapper },
     )
 
     await userEvent.click(screen.getByText('RESET HISTORY NOW'))
@@ -216,6 +234,7 @@ describe('SettingsScreenContainer', () => {
         onBack={vi.fn()}
         onConfigChanged={onConfigChanged}
       />,
+      { wrapper: TestWrapper },
     )
 
     await userEvent.click(screen.getByRole('button', { name: '...' }))
@@ -242,6 +261,7 @@ describe('SettingsScreenContainer', () => {
         onBack={vi.fn()}
         onConfigChanged={onConfigChanged}
       />,
+      { wrapper: TestWrapper },
     )
 
     await userEvent.click(

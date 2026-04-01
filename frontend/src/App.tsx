@@ -5,6 +5,10 @@ import { PlayHistoryListContainer } from '@/components/PlayHistoryListContainer'
 import { SettingsScreenContainer } from '@/components/SettingsScreenContainer'
 import { SetupScreenContainer } from '@/components/SetupScreenContainer'
 import { UpdateNotification } from '@/components/UpdateNotification'
+import {
+  UpdateCheckerProvider,
+  useUpdateCheckerValue,
+} from '@/hooks/useUpdateChecker'
 import { tauriApi } from '@/tauri-api'
 import type { AppConfig } from '@/types'
 
@@ -21,6 +25,16 @@ function getTodayDate(): string {
 const DEFAULT_FONT_SIZE = 13
 
 export const App = () => {
+  const updateChecker = useUpdateCheckerValue()
+
+  return (
+    <UpdateCheckerProvider value={updateChecker}>
+      <AppContent />
+    </UpdateCheckerProvider>
+  )
+}
+
+const AppContent = () => {
   const [appState, setAppState] = useState<AppState>('loading')
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [todayDate, setTodayDate] = useState(() => getTodayDate())
