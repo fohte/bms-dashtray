@@ -1,15 +1,8 @@
 import type { CSSProperties } from 'react'
 import { useState } from 'react'
 
+import type { UpdateCheckState } from '@/hooks/useUpdateChecker'
 import type { AppConfig } from '@/types'
-
-export type UpdateCheckState =
-  | { status: 'idle' }
-  | { status: 'checking' }
-  | { status: 'up-to-date' }
-  | { status: 'available'; version: string }
-  | { status: 'downloading'; progress: number }
-  | { status: 'error'; message: string }
 
 export interface SettingsScreenProps {
   config: AppConfig
@@ -432,13 +425,10 @@ export function SettingsScreen({
           <div style={styles.sectionTitle}>ABOUT</div>
           <div style={styles.row}>
             <span style={styles.label}>Version</span>
-            <span style={styles.value}>
-              {appVersion != null ? `v${appVersion}` : '-'}
-            </span>
-          </div>
-          <div style={styles.row}>
-            <span style={styles.label}>Updates</span>
             <div style={styles.updateControl}>
+              <span style={styles.value}>
+                {appVersion != null ? `v${appVersion}` : '-'}
+              </span>
               {updateCheckState.status === 'idle' && (
                 <button
                   type="button"
