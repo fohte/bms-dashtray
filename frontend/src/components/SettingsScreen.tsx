@@ -1,16 +1,21 @@
 import type { CSSProperties } from 'react'
 import { useState } from 'react'
 
+import type { UpdateCheckState } from '@/hooks/useUpdateChecker'
 import type { AppConfig } from '@/types'
 
 export interface SettingsScreenProps {
   config: AppConfig
+  appVersion: string | null
+  updateCheckState: UpdateCheckState
   onBack: () => void
   onChangeBeatorajaRoot: () => void | Promise<void>
   onToggleBackgroundTransparent: (value: boolean) => void | Promise<void>
   onChangeFontSize: (delta: number) => void | Promise<void>
   onChangeResetTime: (time: string) => void | Promise<void>
   onResetHistory: () => void | Promise<void>
+  onCheckForUpdates: () => void
+  onInstallUpdate: () => void
 }
 
 const styles = {
@@ -243,16 +248,55 @@ const styles = {
     fontWeight: 700,
     cursor: 'pointer',
   },
+  updateControl: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  checkUpdateButton: {
+    padding: '4px 8px',
+    backgroundColor: 'transparent',
+    border: '1px solid #444444',
+    borderRadius: '4px',
+    color: '#cccccc',
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 600,
+    letterSpacing: '0.5px',
+    cursor: 'pointer',
+    transition: 'border-color 0.15s',
+  },
+  installUpdateButton: {
+    padding: '4px 8px',
+    backgroundColor: 'transparent',
+    border: '1px solid #3B82F6',
+    borderRadius: '4px',
+    color: '#3B82F6',
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 600,
+    letterSpacing: '0.5px',
+    cursor: 'pointer',
+  },
+  updateStatusText: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: 'var(--font-size-md)',
+    color: '#888888',
+  },
 } satisfies Record<string, CSSProperties>
 
 export function SettingsScreen({
   config,
+  appVersion,
+  updateCheckState,
   onBack,
   onChangeBeatorajaRoot,
   onToggleBackgroundTransparent,
   onChangeFontSize,
   onChangeResetTime,
   onResetHistory,
+  onCheckForUpdates,
+  onInstallUpdate,
 }: SettingsScreenProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
 
@@ -373,6 +417,78 @@ export function SettingsScreen({
             >
               RESET HISTORY NOW
             </button>
+          </div>
+        </section>
+
+        {/* ABOUT Section */}
+        <section>
+          <div style={styles.sectionTitle}>ABOUT</div>
+          <div style={styles.row}>
+            <span style={styles.label}>Version</span>
+            <div style={styles.updateControl}>
+              <span style={styles.value}>
+                {appVersion != null ? `v${appVersion}` : '-'}
+              </span>
+              {updateCheckState.status === 'idle' && (
+                <button
+                  type="button"
+                  style={styles.checkUpdateButton}
+                  onClick={onCheckForUpdates}
+                >
+                  CHECK FOR UPDATES
+                </button>
+              )}
+              {updateCheckState.status === 'checking' && (
+                <span style={styles.updateStatusText}>Checking...</span>
+              )}
+              {updateCheckState.status === 'up-to-date' && (
+                <div style={styles.updateControl}>
+                  <span style={styles.updateStatusText}>Up to date</span>
+                  <button
+                    type="button"
+                    style={styles.checkUpdateButton}
+                    onClick={onCheckForUpdates}
+                  >
+                    CHECK AGAIN
+                  </button>
+                </div>
+              )}
+              {updateCheckState.status === 'available' && (
+                <div style={styles.updateControl}>
+                  <span style={styles.updateStatusText}>
+                    v{updateCheckState.version} available
+                  </span>
+                  <button
+                    type="button"
+                    style={styles.installUpdateButton}
+                    onClick={onInstallUpdate}
+                  >
+                    UPDATE
+                  </button>
+                </div>
+              )}
+              {updateCheckState.status === 'downloading' && (
+                <span style={styles.updateStatusText}>
+                  Downloading... {updateCheckState.progress}%
+                </span>
+              )}
+              {updateCheckState.status === 'error' && (
+                <div style={styles.updateControl}>
+                  <span
+                    style={{ ...styles.updateStatusText, color: '#EF4444' }}
+                  >
+                    {updateCheckState.message}
+                  </span>
+                  <button
+                    type="button"
+                    style={styles.checkUpdateButton}
+                    onClick={onCheckForUpdates}
+                  >
+                    RETRY
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </section>
       </div>

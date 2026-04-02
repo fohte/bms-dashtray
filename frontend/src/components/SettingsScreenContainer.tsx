@@ -1,6 +1,8 @@
-import { useCallback, useState } from 'react'
+import { getVersion } from '@tauri-apps/api/app'
+import { useCallback, useEffect, useState } from 'react'
 
 import { SettingsScreen } from '@/components/SettingsScreen'
+import { useUpdateChecker } from '@/hooks/useUpdateChecker'
 import type { TauriApi } from '@/tauri-api'
 import type { AppConfig } from '@/types'
 
@@ -18,6 +20,16 @@ export function SettingsScreenContainer({
   onConfigChanged,
 }: SettingsScreenContainerProps) {
   const [currentConfig, setCurrentConfig] = useState<AppConfig>(config)
+  const [appVersion, setAppVersion] = useState<string | null>(null)
+  const {
+    state: updateCheckState,
+    checkForUpdates,
+    installUpdate,
+  } = useUpdateChecker()
+
+  useEffect(() => {
+    void getVersion().then(setAppVersion)
+  }, [])
 
   const updateConfig = useCallback(
     (patch: Partial<AppConfig>) => {
@@ -80,12 +92,16 @@ export function SettingsScreenContainer({
   return (
     <SettingsScreen
       config={currentConfig}
+      appVersion={appVersion}
+      updateCheckState={updateCheckState}
       onBack={onBack}
       onChangeBeatorajaRoot={handleChangeBeatorajaRoot}
       onToggleBackgroundTransparent={handleToggleBackgroundTransparent}
       onChangeFontSize={handleChangeFontSize}
       onChangeResetTime={handleChangeResetTime}
       onResetHistory={handleResetHistory}
+      onCheckForUpdates={checkForUpdates}
+      onInstallUpdate={installUpdate}
     />
   )
 }
