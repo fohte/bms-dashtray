@@ -47,8 +47,8 @@ export function PlayHistoryPanel({
           }}
         >
           {activeFilter === 'updated'
-            ? `${filteredRecords.length} ${filteredRecords.length === 1 ? 'update' : 'updates'}`
-            : `${records.length} ${records.length === 1 ? 'play' : 'plays'}`}
+            ? `${String(filteredRecords.length)} ${filteredRecords.length === 1 ? 'update' : 'updates'}`
+            : `${String(records.length)} ${records.length === 1 ? 'play' : 'plays'}`}
         </span>
       </div>
       <div style={{ padding: '0 16px 8px' }}>

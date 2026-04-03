@@ -1,3 +1,6 @@
 # Auto-generated files
 CHANGELOG.md
 backend/gen/
+
+# Lock files
+pnpm-lock.yaml
