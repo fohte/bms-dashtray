@@ -5,8 +5,8 @@ import {
   type UpdateNotificationState,
 } from '@/components/UpdateNotificationBar'
 import {
-  useUpdateChecker,
   type UpdateCheckState,
+  useUpdateChecker,
 } from '@/hooks/useUpdateChecker'
 
 function toBarState(state: UpdateCheckState): UpdateNotificationState | null {
