@@ -215,7 +215,7 @@ function buildFlashStyle(lampClear: number, lampColor: string): CSSProperties {
   return {
     '--lamp-main-color': lampColor,
     '--lamp-alt-color': altColor,
-    animation: `lampFlash ${cycleMs}ms step-end infinite`,
+    animation: `lampFlash ${String(cycleMs)}ms step-end infinite`,
   } as CSSProperties
 }
 
