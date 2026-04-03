@@ -28,7 +28,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 2
 
-<<<<<<< before updating
       - name: Install Tauri system dependencies
         run: |
           sudo apt-get update
@@ -38,12 +37,8 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      - name: Check if previous commit is auto-format by bot
-        id: check-prev
-=======
       - name: Check if current commit is auto-format by bot
         id: check-auto-format
->>>>>>> after updating
         run: |
           commit_message=$(git log -1 --format=%s)
           commit_author=$(git log -1 --format=%an)
