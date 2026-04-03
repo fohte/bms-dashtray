@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.1.3](https://github.com/fohte/bms-dashtray/compare/v0.1.2...v0.1.3) (2026-04-03)
+
+
+### Features
+
+* **frontend:** add version display and manual update check to settings screen ([#90](https://github.com/fohte/bms-dashtray/issues/90)) ([ad7d4f7](https://github.com/fohte/bms-dashtray/commit/ad7d4f787a8e70c8ec6f4beb464482e94e29b4a0))
+* **frontend:** apply `backgroundTransparent` setting to window background ([#86](https://github.com/fohte/bms-dashtray/issues/86)) ([94b9671](https://github.com/fohte/bms-dashtray/commit/94b96716def789f00442d132dc17d9272fc7ba17))
+* **play-history:** distinguish mid-play retirement from completed Failed for clear=1 ([#82](https://github.com/fohte/bms-dashtray/issues/82)) ([32925c1](https://github.com/fohte/bms-dashtray/commit/32925c1c98fd526f3cd5ee701cec242b3f3c65ed))
+
+
+### Bug Fixes
+
+* **backend:** align .bmt parser with beatoraja's actual cache structure ([#62](https://github.com/fohte/bms-dashtray/issues/62)) ([a54d65f](https://github.com/fohte/bms-dashtray/commit/a54d65ffd58650923a24853f88d2054df48c26e1))
+* **backend:** align `tauri-plugin-updater` version with frontend JS plugin ([#68](https://github.com/fohte/bms-dashtray/issues/68)) ([a82ce70](https://github.com/fohte/bms-dashtray/commit/a82ce70319e4494a4f9935ad746b1676e09bdeaf))
+* **backend:** enable updater artifact generation in bundle config ([#70](https://github.com/fohte/bms-dashtray/issues/70)) ([62cac01](https://github.com/fohte/bms-dashtray/commit/62cac01f714e444c690caeda0babc6594170f84c))
+* **ci:** delegate nightly `latest.json` generation to `tauri-action` ([#77](https://github.com/fohte/bms-dashtray/issues/77)) ([7772f51](https://github.com/fohte/bms-dashtray/commit/7772f5134ac75841a22f1985a4e1208c633e19fa))
+* **diff_detector:** treat beatoraja sentinel values as no previous play ([#84](https://github.com/fohte/bms-dashtray/issues/84)) ([dfaaa43](https://github.com/fohte/bms-dashtray/commit/dfaaa4338726114f8a598633a634aa939624b4ed))
+* **frontend:** apply flash animation to previous lamp in split lamp bar ([#89](https://github.com/fohte/bms-dashtray/issues/89)) ([edee1e1](https://github.com/fohte/bms-dashtray/commit/edee1e16aa041009cccf1b04cc5c9dc538b1874d))
+* **frontend:** apply font size setting to all app text ([#64](https://github.com/fohte/bms-dashtray/issues/64)) ([0a09a9e](https://github.com/fohte/bms-dashtray/commit/0a09a9e4fae1a9044241705568db282365522f8a))
+* **frontend:** move clear lamp animation keyframes to static CSS ([#69](https://github.com/fohte/bms-dashtray/issues/69)) ([54c8c8c](https://github.com/fohte/bms-dashtray/commit/54c8c8cefad70b8f67c9028dea47f26b5cf9667d))
+* **frontend:** pass filtered records to `DistributionChart` ([#88](https://github.com/fohte/bms-dashtray/issues/88)) ([aa80928](https://github.com/fohte/bms-dashtray/commit/aa80928df72e25e55e809dc261631108fd28cc22))
+* **table_reader:** resolve md5-only .bmt entries to sha256 via songdata.db ([#83](https://github.com/fohte/bms-dashtray/issues/83)) ([835b438](https://github.com/fohte/bms-dashtray/commit/835b438dc9bf34fb696b4c105e39321f7ce64d14))
+
+
+### Performance Improvements
+
+* **pipeline:** limit scoredatalog and score DB reads to today only ([#87](https://github.com/fohte/bms-dashtray/issues/87)) ([31542b4](https://github.com/fohte/bms-dashtray/commit/31542b413734952e9c0d079d15ad20aff9d3594a))
+
 ## [0.1.2](https://github.com/fohte/bms-dashtray/compare/v0.1.1...v0.1.2) (2026-03-25)
 
 
