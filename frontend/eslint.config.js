@@ -29,7 +29,7 @@ export default config(
     },
   },
   {
-    files: ['.storybook/**/*.ts', 'vitest.config.ts'],
+    files: ['.storybook/**', 'vitest.config.ts'],
     rules: {
       'no-restricted-imports': 'off',
     },
