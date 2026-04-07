@@ -10,6 +10,7 @@ release_type: simple
 subpackages:
   - name: frontend
     type: node
+    storybook: true
   - name: backend
     type: rust
 type: base
