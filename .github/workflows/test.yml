@@ -17,7 +17,11 @@ jobs:
       RUSTC_WRAPPER: 'sccache'
 
     steps:
+<<<<<<< before updating
       - uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+=======
+      - uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
+>>>>>>> after updating
         id: app-token
         with:
           app-id: ${{ secrets.APP_ID }}
@@ -121,19 +125,31 @@ jobs:
           fetch-depth: 2
 
       - name: Check for frontend changes
+<<<<<<< before updating
         uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47.0.0
+=======
+        uses: tj-actions/changed-files@22103cc46bda19c2b464ffe86db46df6922fd323 # v47.0.5
+>>>>>>> after updating
         id: changes-frontend
         with:
           files: frontend/**
 
       - name: Check for backend changes
+<<<<<<< before updating
         uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47.0.0
+=======
+        uses: tj-actions/changed-files@22103cc46bda19c2b464ffe86db46df6922fd323 # v47.0.5
+>>>>>>> after updating
         id: changes-backend
         with:
           files: backend/**
 
       - name: Check for workflow changes
+<<<<<<< before updating
         uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47.0.0
+=======
+        uses: tj-actions/changed-files@22103cc46bda19c2b464ffe86db46df6922fd323 # v47.0.5
+>>>>>>> after updating
         id: changes-workflow
         with:
           files: .github/workflows/test.yml
@@ -179,6 +195,7 @@ jobs:
       RUSTC_WRAPPER: 'sccache'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+<<<<<<< before updating
 
       - name: Install Tauri system dependencies
         run: |
@@ -188,6 +205,8 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf
+=======
+>>>>>>> after updating
 
       - run: rustup show
 
@@ -211,7 +230,11 @@ jobs:
         run: cargo llvm-cov --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
+<<<<<<< before updating
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+=======
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
+>>>>>>> after updating
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: backend/lcov.info
