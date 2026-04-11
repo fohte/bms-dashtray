@@ -17,13 +17,13 @@ jobs:
       RUSTC_WRAPPER: 'sccache'
 
     steps:
-      - uses: actions/create-github-app-token@v3
+      - uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
         id: app-token
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           fetch-depth: 2
@@ -61,9 +61,9 @@ jobs:
       # Run sccache-action before mise-action so that sccache binary is
       # available when mise installs cargo tools (RUSTC_WRAPPER=sccache).
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
 
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
 
       - run: corepack enable
 
@@ -72,7 +72,7 @@ jobs:
         run: echo "path=$(pnpm store path)" >> "$GITHUB_OUTPUT"
 
       - name: Cache pnpm store
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: ${{ steps.pnpm-store.outputs.path }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('frontend/pnpm-lock.yaml') }}
@@ -99,7 +99,7 @@ jobs:
 
       - name: Commit formatted files
         if: ${{ !cancelled() && steps.check-auto-format.outputs.skip_commit != 'true' }}
-        uses: suzuki-shunsuke/commit-action@v0.1.1
+        uses: suzuki-shunsuke/commit-action@f12e2d628a4ab72dcefe7890ae07e8dbf1e201b9 # v0.1.1
         with:
           commit_message: 'style: auto-format'
           workflow: deny
@@ -116,24 +116,24 @@ jobs:
       backend: ${{ steps.changes-backend.outputs.any_changed }}
       workflow: ${{ steps.changes-workflow.outputs.any_changed }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 2
 
       - name: Check for frontend changes
-        uses: tj-actions/changed-files@v47
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47.0.0
         id: changes-frontend
         with:
           files: frontend/**
 
       - name: Check for backend changes
-        uses: tj-actions/changed-files@v47
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47.0.0
         id: changes-backend
         with:
           files: backend/**
 
       - name: Check for workflow changes
-        uses: tj-actions/changed-files@v47
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47.0.0
         id: changes-workflow
         with:
           files: .github/workflows/test.yml
@@ -145,9 +145,9 @@ jobs:
       needs.detect-changes.outputs.workflow == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
 
       - run: corepack enable
 
@@ -156,7 +156,7 @@ jobs:
         run: echo "path=$(pnpm store path)" >> "$GITHUB_OUTPUT"
 
       - name: Cache pnpm store
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: ${{ steps.pnpm-store.outputs.path }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('frontend/pnpm-lock.yaml') }}
@@ -178,7 +178,7 @@ jobs:
       SCCACHE_GHA_ENABLED: 'true'
       RUSTC_WRAPPER: 'sccache'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Tauri system dependencies
         run: |
@@ -194,12 +194,14 @@ jobs:
       # Run sccache-action before mise-action so that sccache binary is
       # available when mise installs cargo tools (RUSTC_WRAPPER=sccache).
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
 
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
+        uses: taiki-e/install-action@7a4939c09608b2a1986b484eca1d16fd0db8ebef # v2.75.5
+        with:
+          tool: cargo-llvm-cov
 
       - name: Install llvm-tools-preview
         run: rustup component add llvm-tools-preview
@@ -209,7 +211,7 @@ jobs:
         run: cargo llvm-cov --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: backend/lcov.info
