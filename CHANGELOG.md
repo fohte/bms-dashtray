@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.4](https://github.com/fohte/bms-dashtray/compare/v0.1.3...v0.1.4) (2026-04-12)
+
+
+### Dependencies
+
+* update dependency @tauri-apps/plugin-updater to v2.10.1 ([#102](https://github.com/fohte/bms-dashtray/issues/102)) ([67967a4](https://github.com/fohte/bms-dashtray/commit/67967a476fe50a2c0b8b50ef4e8dd95beb3894b8))
+* update dependency recharts to v3.8.1 ([#96](https://github.com/fohte/bms-dashtray/issues/96)) ([0d171c9](https://github.com/fohte/bms-dashtray/commit/0d171c98cc3a05786034ee448e5f84b09e0630e7))
+* update rust crate tauri-plugin-updater to v2.10.1 ([#103](https://github.com/fohte/bms-dashtray/issues/103)) ([2ae8f9b](https://github.com/fohte/bms-dashtray/commit/2ae8f9bc53965cdc36ad13bdd034ed374f5f24cc))
+
 ## [0.1.3](https://github.com/fohte/bms-dashtray/compare/v0.1.2...v0.1.3) (2026-04-03)
 
 
