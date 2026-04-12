@@ -1,7 +1,9 @@
 import { config } from '@fohte/eslint-config'
+import storybook from 'eslint-plugin-storybook'
 
 export default config(
   { typescript: { typeChecked: true } },
+  ...storybook.configs['flat/recommended'],
   {
     files: ['**/*.ts{,x}'],
     languageOptions: {
