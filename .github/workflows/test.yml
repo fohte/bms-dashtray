@@ -74,18 +74,12 @@ jobs:
       - name: Cache pnpm store
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-<<<<<<< before updating
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('frontend/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-store-
-=======
           path: |
             ${{ steps.pnpm-store.outputs.path }}
             node_modules
             frontend/node_modules
           key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml', 'frontend/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-pnpm-
->>>>>>> after updating
 
       - name: Install pnpm dependencies (root)
         run: pnpm install --frozen-lockfile
