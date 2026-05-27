@@ -8,12 +8,9 @@
     "module": "preserve",
     "moduleResolution": "bundler",
     "noEmit": true,
-<<<<<<< before updating
     "lib": ["DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "baseUrl": ".",
-=======
->>>>>>> after updating
     "paths": {
       "@/*": ["./src/*"]
     }
