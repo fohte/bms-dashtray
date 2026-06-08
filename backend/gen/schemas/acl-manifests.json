@@ -30,7 +30,8 @@
         "allow-identifier",
         "allow-bundle-type",
         "allow-register-listener",
-        "allow-remove-listener"
+        "allow-remove-listener",
+        "allow-supports-multiple-windows"
       ]
     },
     "permissions": {
@@ -150,6 +151,16 @@
         "commands": {
           "allow": [
             "set_dock_visibility"
+          ],
+          "deny": []
+        }
+      },
+      "allow-supports-multiple-windows": {
+        "identifier": "allow-supports-multiple-windows",
+        "description": "Enables the supports_multiple_windows command without any pre-configured scope.",
+        "commands": {
+          "allow": [
+            "supports_multiple_windows"
           ],
           "deny": []
         }
@@ -291,6 +302,16 @@
           "allow": [],
           "deny": [
             "set_dock_visibility"
+          ]
+        }
+      },
+      "deny-supports-multiple-windows": {
+        "identifier": "deny-supports-multiple-windows",
+        "description": "Denies the supports_multiple_windows command without any pre-configured scope.",
+        "commands": {
+          "allow": [],
+          "deny": [
+            "supports_multiple_windows"
           ]
         }
       },
@@ -1233,6 +1254,7 @@
         "allow-set-visible",
         "allow-set-temp-dir-path",
         "allow-set-icon-as-template",
+        "allow-set-icon-with-as-template",
         "allow-set-show-menu-on-left-click"
       ]
     },
@@ -1283,6 +1305,16 @@
         "commands": {
           "allow": [
             "set_icon_as_template"
+          ],
+          "deny": []
+        }
+      },
+      "allow-set-icon-with-as-template": {
+        "identifier": "allow-set-icon-with-as-template",
+        "description": "Enables the set_icon_with_as_template command without any pre-configured scope.",
+        "commands": {
+          "allow": [
+            "set_icon_with_as_template"
           ],
           "deny": []
         }
@@ -1394,6 +1426,16 @@
           "allow": [],
           "deny": [
             "set_icon_as_template"
+          ]
+        }
+      },
+      "deny-set-icon-with-as-template": {
+        "identifier": "deny-set-icon-with-as-template",
+        "description": "Denies the set_icon_with_as_template command without any pre-configured scope.",
+        "commands": {
+          "allow": [],
+          "deny": [
+            "set_icon_with_as_template"
           ]
         }
       },
@@ -1867,10 +1909,22 @@
         "allow-cursor-position",
         "allow-theme",
         "allow-is-always-on-top",
+        "allow-activity-name",
+        "allow-scene-identifier",
         "allow-internal-toggle-maximize"
       ]
     },
     "permissions": {
+      "allow-activity-name": {
+        "identifier": "allow-activity-name",
+        "description": "Enables the activity_name command without any pre-configured scope.",
+        "commands": {
+          "allow": [
+            "activity_name"
+          ],
+          "deny": []
+        }
+      },
       "allow-available-monitors": {
         "identifier": "allow-available-monitors",
         "description": "Enables the available_monitors command without any pre-configured scope.",
@@ -2187,6 +2241,16 @@
         "commands": {
           "allow": [
             "scale_factor"
+          ],
+          "deny": []
+        }
+      },
+      "allow-scene-identifier": {
+        "identifier": "allow-scene-identifier",
+        "description": "Enables the scene_identifier command without any pre-configured scope.",
+        "commands": {
+          "allow": [
+            "scene_identifier"
           ],
           "deny": []
         }
@@ -2631,6 +2695,16 @@
           "deny": []
         }
       },
+      "deny-activity-name": {
+        "identifier": "deny-activity-name",
+        "description": "Denies the activity_name command without any pre-configured scope.",
+        "commands": {
+          "allow": [],
+          "deny": [
+            "activity_name"
+          ]
+        }
+      },
       "deny-available-monitors": {
         "identifier": "deny-available-monitors",
         "description": "Denies the available_monitors command without any pre-configured scope.",
@@ -2948,6 +3022,16 @@
           "allow": [],
           "deny": [
             "scale_factor"
+          ]
+        }
+      },
+      "deny-scene-identifier": {
+        "identifier": "deny-scene-identifier",
+        "description": "Denies the scene_identifier command without any pre-configured scope.",
+        "commands": {
+          "allow": [],
+          "deny": [
+            "scene_identifier"
           ]
         }
       },
