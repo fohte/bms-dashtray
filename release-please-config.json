@@ -19,6 +19,7 @@
       "release-type": "simple",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
+<<<<<<< before updating
       "extra-files": [
         {
           "type": "toml",
@@ -31,6 +32,10 @@
           "jsonpath": "$.version"
         }
       ]
+=======
+      "include-component-in-tag": false,
+      "component": ""
+>>>>>>> after updating
     }
   }
 }
