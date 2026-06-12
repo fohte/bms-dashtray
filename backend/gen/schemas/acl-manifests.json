@@ -3484,8 +3484,6 @@
       "identifier": "default",
       "description": "This permission set configures the types of dialogs\navailable from the dialog plugin.\n\n#### Granted Permissions\n\nAll dialog types are enabled.\n\n\n",
       "permissions": [
-        "allow-ask",
-        "allow-confirm",
         "allow-message",
         "allow-save",
         "allow-open"
@@ -3494,20 +3492,20 @@
     "permissions": {
       "allow-ask": {
         "identifier": "allow-ask",
-        "description": "Enables the ask command without any pre-configured scope.",
+        "description": "Enables the ask command without any pre-configured scope. (**DEPRECATED**: This is now an alias to `allow-message` and will be removed in v3)",
         "commands": {
           "allow": [
-            "ask"
+            "message"
           ],
           "deny": []
         }
       },
       "allow-confirm": {
         "identifier": "allow-confirm",
-        "description": "Enables the confirm command without any pre-configured scope.",
+        "description": "Enables the confirm command without any pre-configured scope. (**DEPRECATED**: This is now an alias to `allow-message` and will be removed in v3)",
         "commands": {
           "allow": [
-            "confirm"
+            "message"
           ],
           "deny": []
         }
@@ -3544,21 +3542,21 @@
       },
       "deny-ask": {
         "identifier": "deny-ask",
-        "description": "Denies the ask command without any pre-configured scope.",
+        "description": "Denies the ask command without any pre-configured scope. (**DEPRECATED**: This is now an alias to `deny-message` and will be removed in v3)",
         "commands": {
           "allow": [],
           "deny": [
-            "ask"
+            "message"
           ]
         }
       },
       "deny-confirm": {
         "identifier": "deny-confirm",
-        "description": "Denies the confirm command without any pre-configured scope.",
+        "description": "Denies the confirm command without any pre-configured scope. (**DEPRECATED**: This is now an alias to `deny-message` and will be removed in v3)",
         "commands": {
           "allow": [],
           "deny": [
-            "confirm"
+            "message"
           ]
         }
       },
