@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.4](https://github.com/fohte/bms-dashtray/compare/v0.1.3...v0.1.4) (2026-06-14)
+
+
+### Dependencies
+
+* update dependency @tauri-apps/plugin-dialog to v2.7.1 ([#121](https://github.com/fohte/bms-dashtray/issues/121)) ([5c2bf20](https://github.com/fohte/bms-dashtray/commit/5c2bf20c61c7f3f5b3d3e9c59140e3c196203a39))
+* update dependency @tauri-apps/plugin-updater to v2.10.1 ([#102](https://github.com/fohte/bms-dashtray/issues/102)) ([67967a4](https://github.com/fohte/bms-dashtray/commit/67967a476fe50a2c0b8b50ef4e8dd95beb3894b8))
+* update dependency recharts to v3.8.1 ([#96](https://github.com/fohte/bms-dashtray/issues/96)) ([0d171c9](https://github.com/fohte/bms-dashtray/commit/0d171c98cc3a05786034ee448e5f84b09e0630e7))
+* update react monorepo to v19.2.6 ([#116](https://github.com/fohte/bms-dashtray/issues/116)) ([4a32434](https://github.com/fohte/bms-dashtray/commit/4a324346baa62f1f00f0eebd3a286f4c95ad5c02))
+* update react monorepo to v19.2.7 ([#130](https://github.com/fohte/bms-dashtray/issues/130)) ([4964ee2](https://github.com/fohte/bms-dashtray/commit/4964ee2cd7a161c94fd063feaf3bbd7dfb30169a))
+* update rust crate chrono to v0.4.45 ([#136](https://github.com/fohte/bms-dashtray/issues/136)) ([4de5e85](https://github.com/fohte/bms-dashtray/commit/4de5e85af1920917d8c4ee5351bb6dce530a0f04))
+* update rust crate serde_json to v1.0.150 ([#118](https://github.com/fohte/bms-dashtray/issues/118)) ([e9da72d](https://github.com/fohte/bms-dashtray/commit/e9da72de3ee4c854ff49eaf1a10de3bb08df1bd1))
+* update rust crate tauri to v2.11.1 [security] ([#108](https://github.com/fohte/bms-dashtray/issues/108)) ([93bdea0](https://github.com/fohte/bms-dashtray/commit/93bdea0e2608ca6a3dcc3932b9a716e563371fd2))
+* update rust crate tauri to v2.11.2 ([#137](https://github.com/fohte/bms-dashtray/issues/137)) ([0c83d12](https://github.com/fohte/bms-dashtray/commit/0c83d1265c49acec06818e1c697ef9ee5f46d309))
+* update rust crate tauri-plugin-updater to v2.10.1 ([#103](https://github.com/fohte/bms-dashtray/issues/103)) ([2ae8f9b](https://github.com/fohte/bms-dashtray/commit/2ae8f9bc53965cdc36ad13bdd034ed374f5f24cc))
+
 ## [0.1.3](https://github.com/fohte/bms-dashtray/compare/v0.1.2...v0.1.3) (2026-04-03)
 
 
