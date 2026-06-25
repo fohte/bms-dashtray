@@ -11,12 +11,16 @@ jobs:
     steps:
       - run: echo "Skip tests for release-please PR (only updates CHANGELOG and version)"
 
+<<<<<<< before updating
   unit-test-frontend:
     runs-on: ubuntu-latest
     steps:
       - run: echo "Skip unit tests for release-please PR (only updates CHANGELOG and version)"
 
   unit-test-backend:
+=======
+  unit-test:
+>>>>>>> after updating
     runs-on: ubuntu-latest
     steps:
       - run: echo "Skip unit tests for release-please PR (only updates CHANGELOG and version)"
