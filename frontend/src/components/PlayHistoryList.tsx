@@ -314,9 +314,9 @@ function PlayHistoryEntry({
         previousColor={clearUpdated ? previousLampColor : null}
       />
       <div style={styles.content}>
-        <div style={styles.left as CSSProperties}>
-          <div style={styles.titleRow as CSSProperties}>
-            <span style={styles.title as CSSProperties}>{record.title}</span>
+        <div style={styles.left}>
+          <div style={styles.titleRow}>
+            <span style={styles.title}>{record.title}</span>
             {record.subtitle !== '' && (
               <span style={styles.subtitle}>{record.subtitle}</span>
             )}
@@ -343,7 +343,7 @@ function PlayHistoryEntry({
             )}
           </div>
         </div>
-        <div style={styles.right as CSSProperties}>
+        <div style={styles.right}>
           <div style={styles.scoreRow}>
             <span style={styles.scoreValue}>{record.exScore}</span>
             {exScoreDiff != null && (
@@ -372,7 +372,7 @@ export function PlayHistoryList({ records }: PlayHistoryListProps) {
   }
 
   return (
-    <div style={styles.container as CSSProperties}>
+    <div style={styles.container}>
       {records.map((record, index) => (
         <PlayHistoryEntry key={record.id} record={record} index={index} />
       ))}

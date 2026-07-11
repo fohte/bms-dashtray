@@ -114,15 +114,11 @@ export function DistributionChart({ records }: DistributionChartProps) {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <span style={styles.headerLabel as CSSProperties}>
-          TABLE LEVEL DISTRIBUTION
-        </span>
+        <span style={styles.headerLabel}>TABLE LEVEL DISTRIBUTION</span>
         <span style={styles.headerTotal}>{total} total</span>
       </div>
       {distribution.length === 0 ? (
-        <div style={styles.emptyMessage as CSSProperties}>
-          No table level data
-        </div>
+        <div style={styles.emptyMessage}>No table level data</div>
       ) : (
         distribution.map((item) => (
           <div key={item.label} style={styles.row}>

@@ -224,16 +224,14 @@ export function SetupScreen({
         <span style={styles.iconText}>BMS</span>
       </div>
       <h1 style={styles.title}>bms-dashtray</h1>
-      <p style={styles.description as CSSProperties}>
+      <p style={styles.description}>
         beatoraja のプレイ履歴を
         <br />
         リアルタイムに表示します
       </p>
 
-      <div style={styles.sectionLabel as CSSProperties}>
-        BEATORAJA ROOT DIRECTORY
-      </div>
-      <div style={styles.pathSelector as CSSProperties}>
+      <div style={styles.sectionLabel}>BEATORAJA ROOT DIRECTORY</div>
+      <div style={styles.pathSelector}>
         <div
           style={{
             ...(styles.pathDisplay as CSSProperties),
@@ -246,7 +244,7 @@ export function SetupScreen({
         </div>
         <button
           type="button"
-          style={styles.browseButton as CSSProperties}
+          style={styles.browseButton}
           onClick={() => {
             void onSelectFolder()
           }}
@@ -258,7 +256,7 @@ export function SetupScreen({
 
       {players.length > 1 && (
         <>
-          <div style={styles.sectionLabel as CSSProperties}>PLAYER</div>
+          <div style={styles.sectionLabel}>PLAYER</div>
           <div style={styles.playerSection}>
             {players.map((name) => (
               <button
