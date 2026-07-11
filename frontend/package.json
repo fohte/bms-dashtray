@@ -27,9 +27,9 @@
     "recharts": "3.8.1"
   },
   "devDependencies": {
-    "@commitlint/cli": "21.1.0",
+    "@commitlint/cli": "21.2.0",
     "@eslint/eslintrc": "3.3.5",
-    "@fohte/eslint-config": "0.3.5",
+    "@fohte/eslint-config": "0.3.6",
     "@storybook/addon-docs": "10.4.6",
     "@storybook/addon-themes": "10.4.6",
     "@storybook/react-vite": "10.4.6",
