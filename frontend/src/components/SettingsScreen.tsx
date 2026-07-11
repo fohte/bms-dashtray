@@ -306,7 +306,7 @@ export function SettingsScreen({
         <button type="button" style={styles.backButton} onClick={onBack}>
           {'< BACK'}
         </button>
-        <span style={styles.headerTitle as CSSProperties}>SETTINGS</span>
+        <span style={styles.headerTitle}>SETTINGS</span>
         <div style={styles.headerSpacer} />
       </div>
 
