@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { PlayHistoryPanel } from '@/components/PlayHistoryPanel'
-import { makeRecord } from '@/test-helpers'
+import { PlayHistoryPanel } from '#components/PlayHistoryPanel'
+import { makeRecord } from '#test-helpers'
 
 const meta = {
   title: 'Components/PlayHistoryPanel',

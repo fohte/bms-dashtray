@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 
-import type { DbFileStatus } from '@/types'
+import type { DbFileStatus } from '#types'
 
 export interface SetupScreenProps {
   selectedPath: string | null

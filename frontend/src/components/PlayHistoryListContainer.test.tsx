@@ -1,10 +1,10 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { PlayHistoryListContainer } from '@/components/PlayHistoryListContainer'
-import type { TauriApi } from '@/tauri-api'
-import { makeRecord } from '@/test-helpers'
-import type { ScoresUpdatedPayload } from '@/types'
+import { PlayHistoryListContainer } from '#components/PlayHistoryListContainer'
+import type { TauriApi } from '#tauri-api'
+import { makeRecord } from '#test-helpers'
+import type { ScoresUpdatedPayload } from '#types'
 
 function createMockApi(overrides: Partial<TauriApi> = {}): TauriApi {
   return {

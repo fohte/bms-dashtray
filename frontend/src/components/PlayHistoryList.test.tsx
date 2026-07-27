@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { PlayHistoryList } from '@/components/PlayHistoryList'
-import { makeRecord } from '@/test-helpers'
+import { PlayHistoryList } from '#components/PlayHistoryList'
+import { makeRecord } from '#test-helpers'
 
 function expectFlashAnimation(el: HTMLElement, expectedMs: string) {
   expect(el.style.animation).toContain('lampFlash')

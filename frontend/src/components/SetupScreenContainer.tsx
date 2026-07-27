@@ -1,8 +1,13 @@
+import { ResultAsync } from 'neverthrow'
 import { useCallback, useState } from 'react'
 
-import { SetupScreen } from '@/components/SetupScreen'
-import type { TauriApi } from '@/tauri-api'
-import type { DbFileStatus } from '@/types'
+import { SetupScreen } from '#components/SetupScreen'
+import type { TauriApi } from '#tauri-api'
+import type { DbFileStatus } from '#types'
+
+function toMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e)
+}
 
 interface SetupScreenContainerProps {
   api: TauriApi
@@ -26,17 +31,13 @@ export function SetupScreenContainer({
       setError(null)
       setDbFileStatuses([])
 
-      try {
-        await api.validateAndSaveConfig(path, playerName)
-        setDbFileStatuses([
-          { name: 'songdata.db', found: true },
-          { name: 'scoredatalog.db', found: true },
-          { name: 'score.db', found: true },
-          { name: 'scorelog.db', found: true },
-        ])
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e)
-        const missingFiles = parseMissingFiles(message)
+      const result = await ResultAsync.fromPromise(
+        api.validateAndSaveConfig(path, playerName),
+        toMessage,
+      )
+
+      if (result.isErr()) {
+        const missingFiles = parseMissingFiles(result.error)
         const allFiles = [
           'songdata.db',
           'scoredatalog.db',
@@ -49,10 +50,17 @@ export function SetupScreenContainer({
             found: !missingFiles.includes(name),
           })),
         )
-        setError(message)
-      } finally {
-        setIsValidating(false)
+        setError(result.error)
+      } else {
+        setDbFileStatuses([
+          { name: 'songdata.db', found: true },
+          { name: 'scoredatalog.db', found: true },
+          { name: 'score.db', found: true },
+          { name: 'scorelog.db', found: true },
+        ])
       }
+
+      setIsValidating(false)
     },
     [api],
   )
@@ -68,23 +76,29 @@ export function SetupScreenContainer({
     setDbFileStatuses([])
     setIsValidating(true)
 
-    try {
-      const detected = await api.detectPlayers(path)
-      if (detected.length === 1) {
-        // Single player: auto-select and validate
-        const player = detected[0]
-        if (player == null) throw new Error('No player detected')
+    const result = await ResultAsync.fromPromise(
+      api.detectPlayers(path),
+      toMessage,
+    )
+
+    if (result.isErr()) {
+      setError(result.error)
+      setIsValidating(false)
+      return
+    }
+
+    const detected = result.value
+    if (detected.length === 1) {
+      // Single player: auto-select and validate
+      const [player] = detected
+      if (player != null) {
         setSelectedPlayer(player)
         setPlayers(detected)
         await validateWithPlayer(path, player)
-      } else {
-        // Multiple players: let user choose
-        setPlayers(detected)
-        setIsValidating(false)
       }
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e)
-      setError(message)
+    } else {
+      // Multiple players: let user choose
+      setPlayers(detected)
       setIsValidating(false)
     }
   }, [api, validateWithPlayer])

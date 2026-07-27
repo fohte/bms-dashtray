@@ -4,9 +4,9 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   PlayHistoryPanel,
   type PlayHistoryPanelProps,
-} from '@/components/PlayHistoryPanel'
-import { makeRecord } from '@/test-helpers'
-import type { PlayRecord } from '@/types'
+} from '#components/PlayHistoryPanel'
+import { makeRecord } from '#test-helpers'
+import type { PlayRecord } from '#types'
 
 const defaultProps: PlayHistoryPanelProps = {
   records: [],

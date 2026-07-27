@@ -1,8 +1,8 @@
 import type { CSSProperties } from 'react'
 import { useState } from 'react'
 
-import type { UpdateCheckState } from '@/hooks/useUpdateChecker'
-import type { AppConfig } from '@/types'
+import type { UpdateCheckState } from '#hooks/useUpdateChecker'
+import type { AppConfig } from '#types'
 
 export interface SettingsScreenProps {
   config: AppConfig

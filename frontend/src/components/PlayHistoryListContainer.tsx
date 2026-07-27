@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { filterRecords } from '@/components/filterRecords'
-import { PlayHistoryPanel } from '@/components/PlayHistoryPanel'
-import type { TauriApi } from '@/tauri-api'
-import type { FilterType, PlayRecord } from '@/types'
+import { filterRecords } from '#components/filterRecords'
+import { PlayHistoryPanel } from '#components/PlayHistoryPanel'
+import type { TauriApi } from '#tauri-api'
+import type { FilterType, PlayRecord } from '#types'
 
 interface PlayHistoryListContainerProps {
   api: TauriApi

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { filterRecords, isUpdatedRecord } from '@/components/filterRecords'
-import { makeRecord } from '@/test-helpers'
+import { filterRecords, isUpdatedRecord } from '#components/filterRecords'
+import { makeRecord } from '#test-helpers'
 
 describe('isUpdatedRecord', () => {
   it.each([

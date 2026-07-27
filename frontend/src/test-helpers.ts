@@ -1,4 +1,4 @@
-import type { PlayRecord } from '@/types'
+import type { PlayRecord } from '#types'
 
 export function makeRecord(overrides: Partial<PlayRecord> = {}): PlayRecord {
   return {

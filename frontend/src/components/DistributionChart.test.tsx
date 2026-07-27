@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest'
 import {
   aggregateLevelDistribution,
   DistributionChart,
-} from '@/components/DistributionChart'
-import { makeRecord } from '@/test-helpers'
+} from '#components/DistributionChart'
+import { makeRecord } from '#test-helpers'
 
 describe('aggregateLevelDistribution', () => {
   it('returns empty array for no records', () => {

@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { MainScreen } from '@/components/MainScreen'
-import { PlayHistoryPanel } from '@/components/PlayHistoryPanel'
-import { makeRecord } from '@/test-helpers'
-import type { PlayRecord } from '@/types'
+import { MainScreen } from '#components/MainScreen'
+import { PlayHistoryPanel } from '#components/PlayHistoryPanel'
+import { makeRecord } from '#test-helpers'
+import type { PlayRecord } from '#types'
 
 const meta = {
   title: 'Components/MainScreen',

@@ -1,4 +1,4 @@
-import type { FilterType, PlayRecord } from '@/types'
+import type { FilterType, PlayRecord } from '#types'
 
 export function isUpdatedRecord(record: PlayRecord): boolean {
   const clearImproved =

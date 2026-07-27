@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { SetupScreen, type SetupScreenProps } from '@/components/SetupScreen'
+import { SetupScreen, type SetupScreenProps } from '#components/SetupScreen'
 
 const defaultProps: SetupScreenProps = {
   selectedPath: null,

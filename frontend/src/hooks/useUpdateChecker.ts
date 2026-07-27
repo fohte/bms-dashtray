@@ -1,5 +1,6 @@
 import { relaunch } from '@tauri-apps/plugin-process'
 import { check, type Update } from '@tauri-apps/plugin-updater'
+import { ResultAsync } from 'neverthrow'
 import {
   createContext,
   useCallback,
@@ -8,6 +9,10 @@ import {
   useRef,
   useState,
 } from 'react'
+
+function toMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e)
+}
 
 export type UpdateCheckState =
   | { status: 'idle' }
@@ -48,25 +53,20 @@ export function useUpdateCheckerValue(): UpdateCheckerValue {
     setState({ status: 'checking' })
 
     const doCheck = async () => {
-      try {
-        const update = await check()
-        if (!isMountedRef.current) return
-        if (update) {
-          setPendingUpdate(update)
-          setState({ status: 'available', version: update.version })
+      const result = await ResultAsync.fromPromise(check(), toMessage)
+
+      if (isMountedRef.current) {
+        if (result.isErr()) {
+          setState({ status: 'error', message: result.error })
+        } else if (result.value) {
+          setPendingUpdate(result.value)
+          setState({ status: 'available', version: result.value.version })
         } else {
           setState({ status: 'up-to-date' })
         }
-      } catch (e) {
-        if (isMountedRef.current) {
-          setState({
-            status: 'error',
-            message: e instanceof Error ? e.message : String(e),
-          })
-        }
-      } finally {
-        isProcessingRef.current = false
       }
+
+      isProcessingRef.current = false
     }
 
     void doCheck()
@@ -77,13 +77,13 @@ export function useUpdateCheckerValue(): UpdateCheckerValue {
     isProcessingRef.current = true
 
     const doUpdate = async () => {
-      try {
-        let totalLength = 0
-        let downloadedLength = 0
+      let totalLength = 0
+      let downloadedLength = 0
 
-        setState({ status: 'downloading', progress: 0 })
+      setState({ status: 'downloading', progress: 0 })
 
-        await pendingUpdate.downloadAndInstall((progress) => {
+      const downloadResult = await ResultAsync.fromPromise(
+        pendingUpdate.downloadAndInstall((progress) => {
           if (!isMountedRef.current) return
           if (
             progress.event === 'Started' &&
@@ -100,21 +100,20 @@ export function useUpdateCheckerValue(): UpdateCheckerValue {
               })
             }
           }
-        })
+        }),
+        toMessage,
+      )
 
-        if (isMountedRef.current) {
-          await relaunch()
-        }
-      } catch (e) {
-        if (isMountedRef.current) {
-          setState({
-            status: 'error',
-            message: e instanceof Error ? e.message : String(e),
-          })
-        }
-      } finally {
-        isProcessingRef.current = false
+      const result =
+        downloadResult.isOk() && isMountedRef.current
+          ? await ResultAsync.fromPromise(relaunch(), toMessage)
+          : downloadResult
+
+      if (isMountedRef.current && result.isErr()) {
+        setState({ status: 'error', message: result.error })
       }
+
+      isProcessingRef.current = false
     }
 
     void doUpdate()
@@ -131,6 +130,7 @@ export function useUpdateCheckerValue(): UpdateCheckerValue {
 export function useUpdateChecker(): UpdateCheckerValue {
   const value = useContext(UpdateCheckerContext)
   if (value == null) {
+    // eslint-disable-next-line no-restricted-syntax -- React context misuse is a programmer error; the hook's synchronous contract has no Result-consuming caller
     throw new Error(
       'useUpdateChecker must be used within an UpdateCheckerProvider',
     )

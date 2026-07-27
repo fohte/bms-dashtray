@@ -1,7 +1,7 @@
-import { DistributionChart } from '@/components/DistributionChart'
-import { FilterTabs } from '@/components/FilterTabs'
-import { PlayHistoryList } from '@/components/PlayHistoryList'
-import type { FilterType, PlayRecord } from '@/types'
+import { DistributionChart } from '#components/DistributionChart'
+import { FilterTabs } from '#components/FilterTabs'
+import { PlayHistoryList } from '#components/PlayHistoryList'
+import type { FilterType, PlayRecord } from '#types'
 
 export interface PlayHistoryPanelProps {
   records: PlayRecord[]

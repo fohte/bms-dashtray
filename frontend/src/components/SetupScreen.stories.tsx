@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { SetupScreen } from '@/components/SetupScreen'
+import { SetupScreen } from '#components/SetupScreen'
 
 const meta = {
   title: 'Components/SetupScreen',

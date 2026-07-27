@@ -2,8 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import { SetupScreenContainer } from '@/components/SetupScreenContainer'
-import type { TauriApi } from '@/tauri-api'
+import { SetupScreenContainer } from '#components/SetupScreenContainer'
+import type { TauriApi } from '#tauri-api'
 
 function createMockApi(overrides: Partial<TauriApi> = {}): TauriApi {
   return {
