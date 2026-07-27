@@ -3,11 +3,11 @@ import { useEffect } from 'react'
 import {
   UpdateNotificationBar,
   type UpdateNotificationState,
-} from '@/components/UpdateNotificationBar'
+} from '#components/UpdateNotificationBar'
 import {
   type UpdateCheckState,
   useUpdateChecker,
-} from '@/hooks/useUpdateChecker'
+} from '#hooks/useUpdateChecker'
 
 function toBarState(state: UpdateCheckState): UpdateNotificationState | null {
   switch (state.status) {

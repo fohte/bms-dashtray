@@ -1,4 +1,4 @@
-import '../src/font-size.css'
+import '#font-size.css'
 
 import type { Preview } from '@storybook/react-vite'
 

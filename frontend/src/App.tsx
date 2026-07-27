@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { MainScreen } from '@/components/MainScreen'
-import { PlayHistoryListContainer } from '@/components/PlayHistoryListContainer'
-import { SettingsScreenContainer } from '@/components/SettingsScreenContainer'
-import { SetupScreenContainer } from '@/components/SetupScreenContainer'
-import { UpdateNotification } from '@/components/UpdateNotification'
+import { MainScreen } from '#components/MainScreen'
+import { PlayHistoryListContainer } from '#components/PlayHistoryListContainer'
+import { SettingsScreenContainer } from '#components/SettingsScreenContainer'
+import { SetupScreenContainer } from '#components/SetupScreenContainer'
+import { UpdateNotification } from '#components/UpdateNotification'
 import {
   UpdateCheckerProvider,
   useUpdateCheckerValue,
-} from '@/hooks/useUpdateChecker'
-import { tauriApi } from '@/tauri-api'
-import type { AppConfig } from '@/types'
+} from '#hooks/useUpdateChecker'
+import { tauriApi } from '#tauri-api'
+import type { AppConfig } from '#types'
 
 type AppState = 'loading' | 'setup' | 'main' | 'settings'
 

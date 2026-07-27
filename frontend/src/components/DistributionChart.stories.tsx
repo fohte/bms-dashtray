@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { DistributionChart } from '@/components/DistributionChart'
-import { makeRecord } from '@/test-helpers'
+import { DistributionChart } from '#components/DistributionChart'
+import { makeRecord } from '#test-helpers'
 
 const meta = {
   title: 'Components/DistributionChart',

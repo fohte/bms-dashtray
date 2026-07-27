@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { FilterTabs, type FilterTabsProps } from '@/components/FilterTabs'
+import { FilterTabs, type FilterTabsProps } from '#components/FilterTabs'
 
 const defaultProps: FilterTabsProps = {
   activeFilter: 'all',

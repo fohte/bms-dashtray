@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 
-import type { PlayRecord } from '@/types'
+import type { PlayRecord } from '#types'
 
 export interface LevelDistribution {
   label: string

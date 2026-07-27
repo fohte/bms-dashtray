@@ -8,11 +8,8 @@
     "module": "preserve",
     "moduleResolution": "bundler",
     "noEmit": true,
-    "lib": ["DOM", "DOM.Iterable"],
-    "jsx": "react-jsx",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx"
   },
   "include": ["src", ".storybook", "*.ts", "*.js"]
 }

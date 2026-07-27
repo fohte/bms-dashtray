@@ -1,8 +1,8 @@
-import '@/components/clear-lamp-animations.css'
+import '#components/clear-lamp-animations.css'
 
 import type { CSSProperties } from 'react'
 
-import type { PlayRecord } from '@/types'
+import type { PlayRecord } from '#types'
 
 export interface PlayHistoryListProps {
   records: PlayRecord[]

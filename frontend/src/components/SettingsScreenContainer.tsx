@@ -1,10 +1,11 @@
 import { getVersion } from '@tauri-apps/api/app'
+import { ResultAsync } from 'neverthrow'
 import { useCallback, useEffect, useState } from 'react'
 
-import { SettingsScreen } from '@/components/SettingsScreen'
-import { useUpdateChecker } from '@/hooks/useUpdateChecker'
-import type { TauriApi } from '@/tauri-api'
-import type { AppConfig } from '@/types'
+import { SettingsScreen } from '#components/SettingsScreen'
+import { useUpdateChecker } from '#hooks/useUpdateChecker'
+import type { TauriApi } from '#tauri-api'
+import type { AppConfig } from '#types'
 
 export interface SettingsScreenContainerProps {
   api: TauriApi
@@ -44,18 +45,24 @@ export function SettingsScreenContainer({
     const path = await api.openFolderDialog()
     if (path == null) return
 
-    try {
-      const players = await api.detectPlayers(path)
-      // Use the first detected player (settings screen doesn't need a picker)
-      const playerName = players[0] ?? ''
-      await api.validateAndSaveConfig(path, playerName)
-      const refreshed = await api.getConfig()
-      if (refreshed != null) {
-        setCurrentConfig(refreshed)
-        onConfigChanged(refreshed)
-      }
-    } catch {
-      // Validation failed — keep current config
+    // Validation failed at any step — keep current config
+    const result = await ResultAsync.fromPromise(
+      api.detectPlayers(path),
+      (e) => e,
+    )
+      .andThen((players) => {
+        // Use the first detected player (settings screen doesn't need a picker)
+        const playerName = players[0] ?? ''
+        return ResultAsync.fromPromise(
+          api.validateAndSaveConfig(path, playerName),
+          (e) => e,
+        )
+      })
+      .andThen(() => ResultAsync.fromPromise(api.getConfig(), (e) => e))
+
+    if (result.isOk() && result.value != null) {
+      setCurrentConfig(result.value)
+      onConfigChanged(result.value)
     }
   }, [api, onConfigChanged])
 

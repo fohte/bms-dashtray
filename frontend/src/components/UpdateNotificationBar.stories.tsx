@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { UpdateNotificationBar } from '@/components/UpdateNotificationBar'
+import { UpdateNotificationBar } from '#components/UpdateNotificationBar'
 
 const meta = {
   title: 'Components/UpdateNotificationBar',

@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 
-import { filterRecords } from '@/components/filterRecords'
-import { FilterTabs } from '@/components/FilterTabs'
-import type { FilterType, PlayRecord } from '@/types'
+import { filterRecords } from '#components/filterRecords'
+import { FilterTabs } from '#components/FilterTabs'
+import type { FilterType, PlayRecord } from '#types'
 
 const meta = {
   title: 'Components/FilterTabs',

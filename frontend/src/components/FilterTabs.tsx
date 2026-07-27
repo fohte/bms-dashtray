@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 
-import type { FilterType } from '@/types'
+import type { FilterType } from '#types'
 
 export interface FilterTabsProps {
   activeFilter: FilterType
