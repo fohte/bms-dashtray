@@ -3,7 +3,7 @@ _commit: v0.9.0
 _src_path: https://github.com/fohte/generic-boilerplate
 auto_merge_release_pr: false
 description: beatoraja のプレイ履歴をリアルタイム表示する Tauri デスクトップアプリ
-is_public: false
+is_public: true
 monorepo_node_workspace: false
 project_name: bms-dashtray
 release_type: simple
