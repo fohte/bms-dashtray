@@ -1,6 +1,6 @@
 import { config } from '@fohte/eslint-config'
+import storybook from 'eslint-plugin-storybook'
 
-<<<<<<< before updating
 export default config(
   {
     typescript: { typeChecked: true },
@@ -18,17 +18,3 @@ export default config(
     },
   },
 )
-||||||| last update
-export default config(
-  {
-    typescript: { typeChecked: true },
-    errorHandling: {},
-  },
-  ...storybook.configs['flat/recommended'],
-)
-=======
-export default config({
-  typescript: { typeChecked: true },
-  errorHandling: {},
-})
->>>>>>> after updating

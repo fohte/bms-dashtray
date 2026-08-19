@@ -128,14 +128,7 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
-<<<<<<< before updating
 
 # Storybook build output
 *storybook.log
 storybook-static
-||||||| last update
-
-# Storybook build output
-storybook-static/
-=======
->>>>>>> after updating

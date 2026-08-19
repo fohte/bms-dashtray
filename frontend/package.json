@@ -22,7 +22,9 @@
     "format": "conc -m 1 pnpm:format:eslint pnpm:format:prettier",
     "test": "conc pnpm:test:type pnpm:test:unit",
     "test:type": "tsc --noEmit",
-    "test:unit": "vitest run --passWithNoTests"
+    "test:unit": "vitest run --passWithNoTests",
+    "storybook": "storybook dev -p 6006",
+    "storybook:build": "storybook build"
   },
   "dependencies": {
     "@tauri-apps/api": "2.10.1",
@@ -39,6 +41,9 @@
     "@eslint/eslintrc": "3.3.6",
     "@fohte/eslint-config": "0.4.1",
     "@ninoseki/eslint-plugin-neverthrow": "0.2.0",
+    "@storybook/addon-docs": "10.4.6",
+    "@storybook/addon-themes": "10.4.6",
+    "@storybook/react-vite": "10.4.6",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.2",
     "@testing-library/user-event": "14.6.1",
@@ -53,8 +58,10 @@
     "concurrently": "10.0.4",
     "eslint": "10.6.0",
     "eslint-plugin-simple-import-sort": "13.0.0",
+    "eslint-plugin-storybook": "10.4.6",
     "jsdom": "28.1.0",
     "prettier": "3.9.6",
+    "storybook": "10.4.6",
     "typescript": "6.0.3",
     "vite": "8.0.16",
     "vitest": "4.1.10"
