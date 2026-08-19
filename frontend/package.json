@@ -39,7 +39,7 @@
   "devDependencies": {
     "@commitlint/cli": "21.2.1",
     "@eslint/eslintrc": "3.3.6",
-    "@fohte/eslint-config": "0.4.0",
+    "@fohte/eslint-config": "0.4.1",
     "@ninoseki/eslint-plugin-neverthrow": "0.2.0",
     "@storybook/addon-docs": "10.4.6",
     "@storybook/addon-themes": "10.4.6",
@@ -55,7 +55,7 @@
     "@typescript-eslint/eslint-plugin": "8.62.1",
     "@typescript-eslint/parser": "8.62.1",
     "@vitejs/plugin-react": "6.0.4",
-    "concurrently": "10.0.3",
+    "concurrently": "10.0.4",
     "eslint": "10.6.0",
     "eslint-plugin-simple-import-sort": "13.0.0",
     "eslint-plugin-storybook": "10.4.6",

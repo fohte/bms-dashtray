@@ -21,7 +21,7 @@ tauri = { version = "=2.11.2", features = ["macos-private-api"] }
 tauri-plugin-dialog = "=2.6.0"
 tauri-plugin-process = "=2.3.1"
 tauri-plugin-updater = "=2.10.1"
-thiserror = "=2.0.19"
+thiserror = "=2.0.20"
 uuid = { version = "=1.22.0", features = ["v4"] }
 
 [dev-dependencies]
