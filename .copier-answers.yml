@@ -7,7 +7,7 @@ is_public: true
 monorepo_node_workspace: false
 project_name: bms-dashtray
 release_type: simple
-repo_id: ''
+repo_id: '1183364231'
 repo_language: en
 subpackages:
   - name: frontend
